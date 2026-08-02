@@ -1,0 +1,14 @@
+*.js
+!jest.config.js
+*.d.ts
+node_modules
+
+# CDK asset staging directory
+.cdk.staging
+cdk.out
+
+# TypeScript build artifacts
+bin/**/*.js
+bin/**/*.d.ts
+lib/**/*.js
+lib/**/*.d.ts

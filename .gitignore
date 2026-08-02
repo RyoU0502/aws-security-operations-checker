@@ -1,0 +1,56 @@
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Local AI instructions
+AGENTS.override.md
+
+# Logs
+*.log
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Local AWS and CDK context
+.aws/
+cdk.context.json
+
+# Private keys
+*.pem
+*.key
+
+# Node.js / CDK
+node_modules/
+cdk.out/
+dist/
+coverage/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Test / cache
+.pytest_cache/
+.mypy_cache/
+
+# Terraform / misc
+*.tfstate
+*.tfstate.*
+
+# TypeScript build artifacts
+infra/bin/**/*.js
+infra/bin/**/*.d.ts
+infra/lib/**/*.js
+infra/lib/**/*.d.ts
+*.js.map
+
+# Local Lambda invocation output
+invoke-output*.json
+lambda-response*.json
+checker-response*.json
