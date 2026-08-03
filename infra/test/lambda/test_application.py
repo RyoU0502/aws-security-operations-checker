@@ -10,8 +10,11 @@ RESULT_ID = "00000000-0000-0000-0000-000000000000"
 CHECKED_AT = "2026-01-01T00:00:00+00:00"
 
 
-def check_result(status: str = "PASS") -> dict[str, object]:
-    return {
+def check_result(
+    status: str = "PASS",
+    extra_fields: dict[str, object] | None = None,
+) -> dict[str, object]:
+    result: dict[str, object] = {
         "checkId": "test-checker",
         "checkName": "Test Checker",
         "status": status,
@@ -20,6 +23,8 @@ def check_result(status: str = "PASS") -> dict[str, object]:
         "resourceId": "test-resource",
         "checkedAt": CHECKED_AT,
     }
+    result.update(extra_fields or {})
+    return result
 
 
 class StubChecker:
@@ -27,11 +32,16 @@ class StubChecker:
     name = "Test Checker"
     severity = "LOW"
 
-    def __init__(self, status: str = "PASS") -> None:
+    def __init__(
+        self,
+        status: str = "PASS",
+        extra_fields: dict[str, object] | None = None,
+    ) -> None:
         self.status = status
+        self.extra_fields = extra_fields
 
     def run(self, checked_at: str) -> list[dict[str, object]]:
-        return [check_result(self.status)]
+        return [check_result(self.status, self.extra_fields)]
 
 
 class FakeTable:
@@ -48,9 +58,14 @@ class FakeTable:
 
 
 class ApplicationTest(unittest.TestCase):
-    def execute(self, table: FakeTable, status: str = "PASS"):
+    def execute(
+        self,
+        table: FakeTable,
+        status: str = "PASS",
+        extra_fields: dict[str, object] | None = None,
+    ):
         return execute_check_run(
-            checkers=[StubChecker(status)],
+            checkers=[StubChecker(status, extra_fields)],
             table=table,
             env_name="dev",
             result_id_factory=lambda: RESULT_ID,
@@ -69,6 +84,54 @@ class ApplicationTest(unittest.TestCase):
         self.assertEqual(RESULT_ID, table.items[0]["resultId"])
         self.assertEqual(RESULT_ID, response_body["resultId"])
         self.assertEqual(table.items[0], response_body)
+        self.assertEqual(
+            {
+                "checkId",
+                "checkName",
+                "status",
+                "severity",
+                "message",
+                "resourceId",
+                "checkedAt",
+            },
+            set(response_body["results"][0]),
+        )
+
+    def test_unknown_fields_are_not_saved_or_returned(self) -> None:
+        table = FakeTable()
+        sensitive_values = {
+            "accountId": "111111111111",
+            "rawResponse": {"RequestId": "dummy-request-id"},
+            "exception": "dummy exception text",
+        }
+
+        with self.assertLogs("runner", level="ERROR") as logs:
+            response = self.execute(table, extra_fields=sensitive_values)
+
+        response_body = json.loads(response["body"])
+        serialized_item = json.dumps(table.items[0])
+
+        self.assertEqual("ERROR", response_body["results"][0]["status"])
+        self.assertEqual(table.items[0], response_body)
+        self.assertEqual(
+            {
+                "checkId",
+                "checkName",
+                "status",
+                "severity",
+                "message",
+                "resourceId",
+                "checkedAt",
+            },
+            set(response_body["results"][0]),
+        )
+        for field, value in sensitive_values.items():
+            self.assertNotIn(field, response_body["results"][0])
+            if isinstance(value, str):
+                self.assertNotIn(value, serialized_item)
+                self.assertNotIn(value, logs.output[0])
+        self.assertNotIn("dummy-request-id", serialized_item)
+        self.assertNotIn("dummy-request-id", logs.output[0])
 
     def test_fail_result_still_returns_200_after_save(self) -> None:
         table = FakeTable()

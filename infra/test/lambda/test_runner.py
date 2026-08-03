@@ -1,11 +1,18 @@
 from __future__ import annotations
 
+import json
 import unittest
 
 from runner import run_checkers
 
 
 CHECKED_AT = "2026-01-01T00:00:00+00:00"
+DUMMY_ACCOUNT_ID = "000000000000"
+DUMMY_ARN = (
+    "arn:aws:example:ap-northeast-1:000000000000:resource/dummy"
+)
+DUMMY_REQUEST_ID = "dummy-request-id-00000000"
+MISSING = object()
 
 
 def check_result(
@@ -163,6 +170,81 @@ class RunnerTest(unittest.TestCase):
 
         self.assert_invalid_result_becomes_error([invalid_result])
 
+    def test_unknown_top_level_fields_become_sanitized_errors(self) -> None:
+        cases = (
+            ("accountId", DUMMY_ACCOUNT_ID),
+            ("rawResponse", {"RequestId": DUMMY_REQUEST_ID}),
+            ("exception", RuntimeError("dummy exception text")),
+            ("customField", DUMMY_ARN),
+        )
+
+        for unknown_key, unknown_value in cases:
+            with self.subTest(unknown_key=unknown_key):
+                invalid_result = check_result(check_id="unknown-field")
+                invalid_result[unknown_key] = unknown_value
+                checker = StubChecker("unknown-field", [invalid_result])
+
+                with self.assertLogs("runner", level="ERROR") as logs:
+                    results, summary = run_checkers([checker], CHECKED_AT)
+
+                serialized_result = json.dumps(results[0])
+                self.assertEqual("ERROR", results[0]["status"])
+                self.assertEqual(1, summary["errorCount"])
+                self.assertNotIn(unknown_key, results[0])
+                self.assertNotIn(DUMMY_ACCOUNT_ID, serialized_result)
+                self.assertNotIn(DUMMY_ARN, serialized_result)
+                self.assertNotIn(DUMMY_REQUEST_ID, serialized_result)
+                self.assertNotIn("dummy exception text", serialized_result)
+                self.assertNotIn(DUMMY_ACCOUNT_ID, logs.output[0])
+                self.assertNotIn(DUMMY_ARN, logs.output[0])
+                self.assertNotIn(DUMMY_REQUEST_ID, logs.output[0])
+
+    def test_invalid_checker_metadata_becomes_sanitized_error(self) -> None:
+        cases = (
+            ("checker_id", ""),
+            ("checker_id", MISSING),
+            ("name", None),
+            ("name", ""),
+            ("severity", None),
+            ("severity", "UNKNOWN"),
+        )
+
+        for attribute, invalid_value in cases:
+            with self.subTest(attribute=attribute, value=invalid_value):
+                execution_order: list[str] = []
+                checker = StubChecker(
+                    "metadata-checker",
+                    [check_result(check_id="metadata-checker")],
+                    execution_order,
+                )
+
+                if invalid_value is MISSING:
+                    delattr(checker, attribute)
+                else:
+                    setattr(checker, attribute, invalid_value)
+
+                with self.assertLogs("runner", level="ERROR") as logs:
+                    results, summary = run_checkers([checker], CHECKED_AT)
+
+                self.assertEqual([], execution_order)
+                self.assertEqual(1, summary["errorCount"])
+                self.assertEqual(
+                    {
+                        "checkId": "unknown-checker",
+                        "checkName": "Unknown Checker",
+                        "status": "ERROR",
+                        "severity": "LOW",
+                        "message": (
+                            "Checker execution did not produce a valid "
+                            "result."
+                        ),
+                        "resourceId": "unknown",
+                        "checkedAt": CHECKED_AT,
+                    },
+                    results[0],
+                )
+                self.assertIn("checker_id=unknown-checker", logs.output[0])
+
     def test_next_checker_runs_after_invalid_result(self) -> None:
         execution_order: list[str] = []
         invalid_result = check_result(
@@ -203,6 +285,7 @@ class RunnerTest(unittest.TestCase):
         results, _ = run_checkers([checker], CHECKED_AT)
 
         self.assertEqual(custom_result["details"], results[0]["details"])
+        self.assertEqual(set(custom_result), set(results[0]))
 
     def assert_invalid_result_becomes_error(self, value: object) -> None:
         checker = StubChecker("invalid", value)

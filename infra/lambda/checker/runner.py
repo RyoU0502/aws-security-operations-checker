@@ -4,7 +4,7 @@ import logging
 from collections.abc import Sequence
 from typing import cast
 
-from models import Checker, CheckResult, CheckStatus, CheckSummary
+from models import Checker, CheckResult, CheckSeverity, CheckStatus, CheckSummary
 
 
 logger = logging.getLogger(__name__)
@@ -19,8 +19,13 @@ REQUIRED_RESULT_KEYS = (
     "resourceId",
     "checkedAt",
 )
+OPTIONAL_RESULT_KEYS = ("details",)
+ALLOWED_RESULT_KEYS = frozenset(REQUIRED_RESULT_KEYS + OPTIONAL_RESULT_KEYS)
 VALID_STATUSES = ("PASS", "FAIL", "ERROR")
 VALID_SEVERITIES = ("LOW", "MEDIUM", "HIGH", "CRITICAL")
+UNKNOWN_CHECKER_ID = "unknown-checker"
+UNKNOWN_CHECKER_NAME = "Unknown Checker"
+UNKNOWN_CHECKER_SEVERITY: CheckSeverity = "LOW"
 
 
 class CheckerContractError(Exception):
@@ -32,6 +37,9 @@ def _validate_result(result: object) -> dict[str, object]:
         raise CheckerContractError
 
     if any(key not in result for key in REQUIRED_RESULT_KEYS):
+        raise CheckerContractError
+
+    if any(key not in ALLOWED_RESULT_KEYS for key in result):
         raise CheckerContractError
 
     if not isinstance(result["checkId"], str) or not result["checkId"]:
@@ -62,15 +70,46 @@ def _validate_result(result: object) -> dict[str, object]:
     return result
 
 
+def _validate_checker_metadata(
+    checker: object,
+) -> tuple[str, str, CheckSeverity]:
+    checker_id = getattr(checker, "checker_id", None)
+    name = getattr(checker, "name", None)
+    severity = getattr(checker, "severity", None)
+
+    if not isinstance(checker_id, str) or not checker_id:
+        raise CheckerContractError
+
+    if not isinstance(name, str) or not name:
+        raise CheckerContractError
+
+    if (
+        not isinstance(severity, str)
+        or severity not in VALID_SEVERITIES
+    ):
+        raise CheckerContractError
+
+    return checker_id, name, cast(CheckSeverity, severity)
+
+
 def _create_checker_error_result(
-    checker: Checker,
     checked_at: str,
+    checker_metadata: tuple[str, str, CheckSeverity] | None,
 ) -> CheckResult:
+    if checker_metadata is None:
+        checker_metadata = (
+            UNKNOWN_CHECKER_ID,
+            UNKNOWN_CHECKER_NAME,
+            UNKNOWN_CHECKER_SEVERITY,
+        )
+
+    checker_id, checker_name, checker_severity = checker_metadata
+
     return {
-        "checkId": checker.checker_id,
-        "checkName": checker.name,
+        "checkId": checker_id,
+        "checkName": checker_name,
         "status": "ERROR",
-        "severity": checker.severity,
+        "severity": checker_severity,
         "message": "Checker execution did not produce a valid result.",
         "resourceId": "unknown",
         "checkedAt": checked_at,
@@ -115,26 +154,38 @@ def run_checkers(
     results: list[CheckResult] = []
 
     for checker in checkers:
+        checker_metadata: tuple[str, str, CheckSeverity] | None = None
+
         try:
+            checker_metadata = _validate_checker_metadata(checker)
             checker_results = checker.run(checked_at)
             normalized_results = _normalize_results(
                 checker_results,
                 checked_at,
             )
         except Exception as error:
+            checker_id = (
+                checker_metadata[0]
+                if checker_metadata is not None
+                else UNKNOWN_CHECKER_ID
+            )
             logger.error(
                 "checker_id=%s status=ERROR exception_type=%s",
-                checker.checker_id,
+                checker_id,
                 type(error).__name__,
             )
             normalized_results = [
-                _create_checker_error_result(checker, checked_at)
+                _create_checker_error_result(checked_at, checker_metadata)
             ]
 
         for result in normalized_results:
             logger.info(
                 "checker_id=%s status=%s",
-                checker.checker_id,
+                (
+                    checker_metadata[0]
+                    if checker_metadata is not None
+                    else UNKNOWN_CHECKER_ID
+                ),
                 result["status"],
             )
 

@@ -14,28 +14,19 @@ REQUIRED_SETTINGS = (
 )
 
 
+class S3ControlClientExceptions(Protocol):
+    NoSuchPublicAccessBlockConfiguration: type[Exception]
+
+
 class S3ControlClient(Protocol):
+    exceptions: S3ControlClientExceptions
+
     def get_public_access_block(
         self,
         *,
         AccountId: str,
     ) -> Mapping[str, object]:
         ...
-
-
-def _get_aws_error_code(error: Exception) -> str | None:
-    response = getattr(error, "response", None)
-
-    if not isinstance(response, Mapping):
-        return None
-
-    error_data = response.get("Error")
-
-    if not isinstance(error_data, Mapping):
-        return None
-
-    error_code = error_data.get("Code")
-    return error_code if isinstance(error_code, str) else None
 
 
 class S3AccountPublicAccessBlockChecker:
@@ -142,32 +133,22 @@ class S3AccountPublicAccessBlockChecker:
         )
 
     def run(self, checked_at: str) -> list[CheckResult]:
+        client_exceptions = self._s3_control_client.exceptions
+        not_configured_error = (
+            client_exceptions.NoSuchPublicAccessBlockConfiguration
+        )
+
         try:
             response = self._s3_control_client.get_public_access_block(
                 AccountId=self._account_id,
             )
-        except Exception as error:
-            if (
-                _get_aws_error_code(error)
-                == "NoSuchPublicAccessBlockConfiguration"
-            ):
-                return [
-                    self._result(
-                        status="FAIL",
-                        message=(
-                            "Account-level S3 Block Public Access "
-                            "configuration is not set."
-                        ),
-                        checked_at=checked_at,
-                    )
-                ]
-
+        except not_configured_error:
             return [
                 self._result(
-                    status="ERROR",
+                    status="FAIL",
                     message=(
-                        "Unable to evaluate account-level S3 Block Public "
-                        "Access because the AWS API request failed."
+                        "Account-level S3 Block Public Access "
+                        "configuration is not set."
                     ),
                     checked_at=checked_at,
                 )
