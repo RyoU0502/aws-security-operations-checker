@@ -325,7 +325,18 @@ The main usage-dependent cost sources are:
 - Storage and requests for the stack's S3 results bucket, although current Checker results are not written there
 - CDK bootstrap and deployment artifacts, such as asset storage and related requests
 
-Actual charges depend on the AWS region, invocation frequency, log volume, retained data, and account pricing. This project does not state a fixed operating cost. The DynamoDB table has no TTL configuration, so stored items do not expire automatically and storage can grow over time.
+The quantity-based estimate below is dated 2026-08-03 and uses AWS public pricing for `ap-northeast-1`. It excludes the Free Tier, credits, discounts, tax, and negligible data transfer. It assumes 100 manual Checker invocations per month, 128 MB of Lambda memory, a one-second average duration, one 4 KiB DynamoDB item written per invocation, 10 KiB of CloudWatch Logs per invocation, and no result objects stored in the results bucket.
+
+| Environment | Estimated monthly cost |
+|---|---:|
+| `dev` | Approximately USD 0.00136 |
+| `prod` | Approximately USD 0.00138 |
+
+Both estimates are less than USD 0.01 per month. `dev` retains Checker logs for 7 days and `prod` for 30 days. The CloudWatch Logs storage calculation conservatively uses a compression ratio of 1.0.
+
+The DynamoDB table has no TTL configuration, so stored data accumulates. Each additional retained set of 100 items at 4 KiB per item adds approximately USD 0.000109 per month in storage cost. The estimates do not include CDK bootstrap assets, transient deploy, update, or destroy costs, or continuing costs for resources retained after a production stack destroy. The account-level `GetAccountPublicAccessBlock` request is also excluded because its billable SKU could not be determined conclusively from the official AWS Price List.
+
+These values are estimates rather than guaranteed charges. AWS pricing can change, so recheck it before deployment. See the [AWS quantity-based cost estimate](docs/test-records/2026-08-03-aws-cost-estimate.md) for pricing sources, SKUs, exact calculations, and exclusions.
 
 ## Cleanup
 
@@ -377,3 +388,4 @@ Public validation records are available in the repository:
 - [CDK feature flag configuration validation](docs/test-records/2026-08-02-cdk-feature-flags.md)
 - [TypeScript no-emit and Jest module resolution validation](docs/test-records/2026-08-02-typescript-noemit-jest-resolution.md)
 - [Public snapshot local reproduction validation](docs/test-records/2026-08-02-public-snapshot-local-reproduction.md)
+- [AWS quantity-based cost estimate](docs/test-records/2026-08-03-aws-cost-estimate.md)
