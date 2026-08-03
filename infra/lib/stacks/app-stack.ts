@@ -19,10 +19,6 @@ import * as dynamodb from 'aws-cdk-lib/aws-dynamodb';
 
 import * as iam from 'aws-cdk-lib/aws-iam';
 
-// S3 を使うためのモジュールを読み込む
-// これで s3.Bucket のように書ける
-import * as s3 from 'aws-cdk-lib/aws-s3';
-
 // Construct は CDK の部品の親クラスのようなもの
 import { Construct } from 'constructs';
 
@@ -58,43 +54,6 @@ export class AppStack extends cdk.Stack {
     // === は「値と型が等しいか」を比較する演算子
     // envName が 'dev' のときだけ true になる
     const isDev = envName === 'dev';
-
-    // バケット名を組み立てる
-    // S3 バケット名はグローバルで一意である必要があるため、
-    // envName + accountId + region を含めて衝突しにくくする
-    const bucketName = `aso-checker-${envName}-${props.appConfig.accountId}-${props.appConfig.region}`;
-
-    // S3 バケットを1つ作成する
-    const resultsBucket = new s3.Bucket(this, 'ResultsBucket', {
-      // 実際に AWS 上で使われる S3 バケット名
-      bucketName,
-
-      // バージョニングは今は無効
-      // 将来、監査性や履歴管理を強めたくなったら有効化を検討できる
-      versioned: false,
-
-      // パブリックアクセスをすべてブロックする
-      // セキュリティ上かなり重要な基本設定
-      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
-
-      // 暗号化を有効化する
-      // まずはS3マネージドキー(SSE-S3)を使うシンプル構成にする
-      encryption: s3.BucketEncryption.S3_MANAGED,
-
-      // 開発環境(dev)なら、スタック削除時にバケットも消せるようにする
-      // 本番(prod)なら、誤削除を防ぐため残す
-      //
-      // ? : は三項演算子
-      // isDev が true なら DESTROY
-      // isDev が false なら RETAIN
-      removalPolicy: isDev
-        ? cdk.RemovalPolicy.DESTROY
-        : cdk.RemovalPolicy.RETAIN,
-
-      // dev のときだけ、バケット内オブジェクトも自動削除して消せるようにする
-      // prod では誤削除防止のため false にする
-      autoDeleteObjects: isDev,
-    });
 
     // DynamoDB テーブル名を組み立てる
     // envName / accountId / region を含めて、環境ごとに区別できる名前にする
@@ -225,12 +184,6 @@ export class AppStack extends cdk.Stack {
 
     new cdk.CfnOutput(this, 'EnvironmentName', {
       value: props.appConfig.envName,
-    });
-
-    // 作成したS3バケット名を出力する
-    // synth 時や deploy 後に確認しやすくなる
-    new cdk.CfnOutput(this, 'ResultsBucketName', {
-      value: resultsBucket.bucketName,
     });
 
     // 作成した DynamoDB テーブル名を出力する
