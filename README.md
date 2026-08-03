@@ -388,4 +388,5 @@ Public validation records are available in the repository:
 - [CDK feature flag configuration validation](docs/test-records/2026-08-02-cdk-feature-flags.md)
 - [TypeScript no-emit and Jest module resolution validation](docs/test-records/2026-08-02-typescript-noemit-jest-resolution.md)
 - [Public snapshot local reproduction validation](docs/test-records/2026-08-02-public-snapshot-local-reproduction.md)
+- [Public snapshot AWS reproduction validation](docs/test-records/2026-08-03-public-snapshot-aws-reproduction.md)
 - [AWS quantity-based cost estimate](docs/test-records/2026-08-03-aws-cost-estimate.md)
