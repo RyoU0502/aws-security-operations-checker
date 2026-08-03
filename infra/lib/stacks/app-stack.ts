@@ -107,6 +107,33 @@ export class AppStack extends cdk.Stack {
         : cdk.RemovalPolicy.RETAIN,
     });
 
+    const checkerRole = new iam.Role(this, 'CheckerFunctionRole', {
+      assumedBy: new iam.ServicePrincipal('lambda.amazonaws.com'),
+      inlinePolicies: {
+        CheckerPermissions: new iam.PolicyDocument({
+          statements: [
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ['logs:CreateLogStream', 'logs:PutLogEvents'],
+              resources: [checkerLogGroup.logGroupArn],
+            }),
+            // Restrict the checker Lambda to PutItem on the results table.
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ['dynamodb:PutItem'],
+              resources: [resultsTable.tableArn],
+            }),
+            // Account-level S3 operations do not support resource-level ARNs.
+            new iam.PolicyStatement({
+              effect: iam.Effect.ALLOW,
+              actions: ['s3:GetAccountPublicAccessBlock'],
+              resources: ['*'],
+            }),
+          ],
+        }),
+      },
+    });
+
     // チェック処理を実行する Lambda 関数を作成する
     const checkerFunction = new lambda.Function(this, 'CheckerFunction', {
 
@@ -156,25 +183,12 @@ export class AppStack extends cdk.Stack {
 
       // 事前に作成した CloudWatch Logs ロググループを Lambda に紐づける
       logGroup: checkerLogGroup,
+
+      // 必要な権限だけを持つ専用の実行ロールを使う
+      role: checkerRole,
     });
 
-    // Restrict the checker Lambda to PutItem on the results table.
-    checkerFunction.addToRolePolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: ['dynamodb:PutItem'],
-        resources: [resultsTable.tableArn],
-      }),
-    );
-
-    // Account-level S3 operations do not support resource-level ARNs.
-    checkerFunction.addToRolePolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: ['s3:GetAccountPublicAccessBlock'],
-        resources: ['*'],
-      }),
-    );
+    checkerFunction.node.addDependency(checkerLogGroup);
 
     // CloudFormation の Outputs を作る
     // まずは設定が正しく渡っているかを確認するための出力

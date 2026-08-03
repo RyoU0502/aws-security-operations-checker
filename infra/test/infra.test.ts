@@ -50,6 +50,47 @@ function getCheckerRoleLogicalId(
   return checkerRoleLogicalId;
 }
 
+function getCheckerRoleStatements(
+  template: Template,
+  envName: EnvironmentName = 'dev',
+): Record<string, unknown>[] {
+  const checkerRoleLogicalId = getCheckerRoleLogicalId(template, envName);
+  const roles = template.findResources('AWS::IAM::Role');
+  const checkerRole = roles[checkerRoleLogicalId];
+
+  expect(checkerRole).toBeDefined();
+
+  const inlineStatements = (checkerRole.Properties.Policies ?? []).flatMap(
+    (policy: { PolicyDocument: { Statement: Record<string, unknown>[] } }) =>
+      policy.PolicyDocument.Statement,
+  );
+  const attachedStatements = Object.values(
+    template.findResources('AWS::IAM::Policy'),
+  )
+    .filter((policy) => {
+      const policyRoles = policy.Properties.Roles ?? [];
+
+      return policyRoles.some(
+        (role: { Ref?: string }) => role.Ref === checkerRoleLogicalId,
+      );
+    })
+    .flatMap((policy) => policy.Properties.PolicyDocument.Statement);
+
+  return [...inlineStatements, ...attachedStatements];
+}
+
+function getActions(statement: Record<string, unknown>): unknown[] {
+  return Array.isArray(statement.Action)
+    ? statement.Action
+    : [statement.Action];
+}
+
+function getResources(statement: Record<string, unknown>): unknown[] {
+  return Array.isArray(statement.Resource)
+    ? statement.Resource
+    : [statement.Resource];
+}
+
 test.each(environments)(
   '%s template omits all Results bucket resources and output',
   (envName) => {
@@ -85,6 +126,24 @@ test.each(environments)(
     template.hasResourceProperties('AWS::Logs::LogGroup', {
       LogGroupName: `/aws/lambda/aso-checker-runner-${envName}`,
     });
+
+    const checkerFunctions = template.findResources('AWS::Lambda::Function', {
+      Properties: {
+        FunctionName: `aso-checker-runner-${envName}`,
+      },
+    });
+    const checkerFunction = Object.values(checkerFunctions)[0];
+    const checkerLogGroups = template.findResources('AWS::Logs::LogGroup', {
+      Properties: {
+        LogGroupName: `/aws/lambda/aso-checker-runner-${envName}`,
+      },
+    });
+    const checkerLogGroupLogicalId = Object.keys(checkerLogGroups)[0];
+    const dependencies = Array.isArray(checkerFunction.DependsOn)
+      ? checkerFunction.DependsOn
+      : [checkerFunction.DependsOn];
+
+    expect(dependencies).toContain(checkerLogGroupLogicalId);
   },
 );
 
@@ -92,30 +151,9 @@ test.each(environments)(
   '%s Checker Lambda can only put items in ResultsTable',
   (envName) => {
     const template = createTemplate(envName);
-    const checkerRoleLogicalId = getCheckerRoleLogicalId(
-      template,
-      envName,
-    );
-
-    const checkerRolePolicies = Object.values(
-      template.findResources('AWS::IAM::Policy'),
-    ).filter((policy) => {
-      const roles = policy.Properties.Roles ?? [];
-
-      return roles.some(
-        (role: { Ref?: string }) => role.Ref === checkerRoleLogicalId,
-      );
-    });
-
-    expect(checkerRolePolicies.length).toBeGreaterThan(0);
-
-    const statements = checkerRolePolicies.flatMap(
-      (policy) => policy.Properties.PolicyDocument.Statement,
-    );
+    const statements = getCheckerRoleStatements(template, envName);
     const dynamodbStatements = statements.filter((statement) => {
-      const actions = Array.isArray(statement.Action)
-        ? statement.Action
-        : [statement.Action];
+      const actions = getActions(statement);
 
       return actions.some(
         (action: unknown) =>
@@ -126,12 +164,8 @@ test.each(environments)(
     expect(dynamodbStatements).toHaveLength(1);
 
     const dynamodbStatement = dynamodbStatements[0];
-    const dynamodbActions = Array.isArray(dynamodbStatement.Action)
-      ? dynamodbStatement.Action
-      : [dynamodbStatement.Action];
-    const resources = Array.isArray(dynamodbStatement.Resource)
-      ? dynamodbStatement.Resource
-      : [dynamodbStatement.Resource];
+    const dynamodbActions = getActions(dynamodbStatement);
+    const resources = getResources(dynamodbStatement);
 
     expect(dynamodbActions).toEqual(['dynamodb:PutItem']);
 
@@ -162,51 +196,65 @@ test.each(environments)(
   },
 );
 
-test('Checker Lambda keeps the CloudWatch Logs basic permissions', () => {
-  const template = createTemplate();
-  const checkerRoleLogicalId = getCheckerRoleLogicalId(template);
-  const roles = template.findResources('AWS::IAM::Role');
-  const checkerRole = roles[checkerRoleLogicalId];
-
-  expect(checkerRole).toBeDefined();
-
-  const managedPolicyArns =
-    checkerRole.Properties.ManagedPolicyArns ?? [];
-  const hasLambdaBasicExecutionPolicy = managedPolicyArns.some(
-    (managedPolicyArn: unknown) =>
-      JSON.stringify(managedPolicyArn).includes(
-        'AWSLambdaBasicExecutionRole',
-      ),
-  );
-
-  expect(hasLambdaBasicExecutionPolicy).toBe(true);
-});
-
 test.each(environments)(
-  '%s Checker Lambda can only read the account S3 Public Access Block',
+  '%s Checker Lambda can write only to its dedicated log streams',
   (envName) => {
     const template = createTemplate(envName);
     const checkerRoleLogicalId = getCheckerRoleLogicalId(
       template,
       envName,
     );
-
-    const checkerRolePolicies = Object.values(
-      template.findResources('AWS::IAM::Policy'),
-    ).filter((policy) => {
-      const roles = policy.Properties.Roles ?? [];
-
-      return roles.some(
-        (role: { Ref?: string }) => role.Ref === checkerRoleLogicalId,
-      );
-    });
-    const statements = checkerRolePolicies.flatMap(
-      (policy) => policy.Properties.PolicyDocument.Statement,
+    const checkerRole = template.findResources('AWS::IAM::Role')[
+      checkerRoleLogicalId
+    ];
+    const managedPolicyArns = checkerRole.Properties.ManagedPolicyArns ?? [];
+    const statements = getCheckerRoleStatements(template, envName);
+    const logStatements = statements.filter((statement) =>
+      getActions(statement).some(
+        (action) =>
+          typeof action === 'string' && action.startsWith('logs:'),
+      ),
     );
+    const allActions = statements.flatMap(getActions);
+
+    expect(JSON.stringify(managedPolicyArns)).not.toContain(
+      'AWSLambdaBasicExecutionRole',
+    );
+    expect(managedPolicyArns).toEqual([]);
+    expect(allActions).not.toContain('logs:CreateLogGroup');
+    expect(logStatements).toHaveLength(1);
+    expect(getActions(logStatements[0])).toEqual([
+      'logs:CreateLogStream',
+      'logs:PutLogEvents',
+    ]);
+
+    const checkerLogGroups = template.findResources(
+      'AWS::Logs::LogGroup',
+      {
+        Properties: {
+          LogGroupName: `/aws/lambda/aso-checker-runner-${envName}`,
+        },
+      },
+    );
+    const checkerLogGroupLogicalIds = Object.keys(checkerLogGroups);
+
+    expect(checkerLogGroupLogicalIds).toHaveLength(1);
+    expect(getResources(logStatements[0])).toEqual([
+      {
+        'Fn::GetAtt': [checkerLogGroupLogicalIds[0], 'Arn'],
+      },
+    ]);
+    expect(getResources(logStatements[0])).not.toContain('*');
+  },
+);
+
+test.each(environments)(
+  '%s Checker Lambda can only read the account S3 Public Access Block',
+  (envName) => {
+    const template = createTemplate(envName);
+    const statements = getCheckerRoleStatements(template, envName);
     const s3Statements = statements.filter((statement) => {
-      const actions = Array.isArray(statement.Action)
-        ? statement.Action
-        : [statement.Action];
+      const actions = getActions(statement);
 
       return actions.some(
         (action: unknown) =>
@@ -217,12 +265,8 @@ test.each(environments)(
     expect(s3Statements).toHaveLength(1);
 
     const s3Statement = s3Statements[0];
-    const s3Actions = Array.isArray(s3Statement.Action)
-      ? s3Statement.Action
-      : [s3Statement.Action];
-    const s3Resources = Array.isArray(s3Statement.Resource)
-      ? s3Statement.Resource
-      : [s3Statement.Resource];
+    const s3Actions = getActions(s3Statement);
+    const s3Resources = getResources(s3Statement);
 
     expect(s3Actions).toEqual(['s3:GetAccountPublicAccessBlock']);
     expect(s3Resources).toEqual(['*']);
