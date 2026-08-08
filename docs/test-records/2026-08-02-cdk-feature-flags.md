@@ -1,5 +1,7 @@
 # CDK Feature Flag Configuration Validation
 
+> **Historical validation record:** This document reflects the implementation at the time of testing and may differ from the current repository state. Its test counts and infrastructure observations are preserved as historical evidence; see [README.md](../../README.md) for the current specification.
+
 ## Summary
 
 With `aws-cdk-lib` `2.263.0`, seven feature flags were not explicitly configured, and their unconfigured behavior differed from the recommended values. The CDK Toolkit therefore displayed a feature flag notice during synthesis.

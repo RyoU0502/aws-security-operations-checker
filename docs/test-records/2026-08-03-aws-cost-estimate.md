@@ -1,5 +1,7 @@
 # AWS Quantity-Based Cost Estimate
 
+> **Historical validation record:** This estimate reflects the application resources present on 2026-08-03. The Results S3 bucket and its auto-delete provider were removed later; the body is preserved as point-in-time evidence. See [README.md](../../README.md) for the current architecture and cost considerations.
+
 Date: 2026-08-03
 
 ## 1. Scope and assumptions

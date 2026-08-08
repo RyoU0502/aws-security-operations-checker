@@ -9,13 +9,19 @@ This directory contains configuration files used by the CDK application.
   - The AWS account ID is resolved from the CDK execution environment instead of being hardcoded.
 
 - `aws-environment.ts`
-  - Validates the AWS account ID and region supplied to the CDK application.
+  - Requires the AWS account ID to be exactly 12 digits.
+  - Defaults an unset region to `ap-northeast-1`.
+  - Rejects empty, whitespace-only, or surrounding-whitespace region values.
 
 - `environment.ts`
-  - Defines and validates the supported CDK environment names.
+  - Defines `dev` and `prod` as the only supported CDK environment names.
+  - Rejects missing or invalid context values instead of selecting a fallback.
+
+Account and region values are resolved from the CDK execution environment. Do not hard-code an AWS account ID in source.
 
 The environment is selected by CDK context, for example:
 
 ```bash
-npx cdk synth -c env=dev --profile <profile-name>
-npx cdk synth -c env=prod --profile <profile-name>
+npx cdk synth -c env=dev --profile <AWS_PROFILE>
+npx cdk synth -c env=prod --profile <AWS_PROFILE>
+```

@@ -10,6 +10,6 @@ This directory contains the main CDK application code for AWS Security & Operati
 
 - `stacks/`
   - CDK stack definitions.
-  - AWS resources such as S3, DynamoDB, Lambda, CloudWatch Logs, and IAM permissions are defined here.
+  - DynamoDB, Lambda, CloudWatch Logs, and IAM resources are defined here.
 
 This structure separates environment configuration from resource definitions, making the CDK app easier to maintain and extend.

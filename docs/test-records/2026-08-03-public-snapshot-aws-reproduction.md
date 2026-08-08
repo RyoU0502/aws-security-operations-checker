@@ -1,5 +1,7 @@
 # Public Snapshot AWS Reproduction Validation
 
+> **Historical validation record:** This document reflects the implementation at the time of testing and is not AWS runtime validation of the current HEAD. The application stack used for this reproduction was subsequently destroyed; see the [final AWS cleanup record](2026-08-08-aws-cleanup.md). See [README.md](../../README.md) for the current implementation and validation status.
+
 ## Summary
 
 This record documents the final AWS reproduction test performed from the sanitized public snapshot. Local validation, development deployment, one runtime invocation, persistence verification, logging verification, and least-privilege IAM verification completed successfully. The development application stack remained deployed in `CREATE_COMPLETE` state after validation.
@@ -32,9 +34,9 @@ The audit results are point-in-time observations and do not guarantee that the r
 
 ## Profiles and Permissions
 
-- Local build preparation, CDK diff, deployment, and the single Lambda invocation used the development PowerUser profile, `dev-poweruser`.
-- Read-only AWS verification used `dev-readonly`.
-- `dev-admin` was not used.
+- Local build preparation, CDK diff, deployment, and the single Lambda invocation used `<DEPLOY_PROFILE>`.
+- Read-only AWS verification used `<READ_ONLY_PROFILE>`.
+- `<ADMIN_PROFILE>` was not used.
 - The caller identities were checked against the locally configured development account before AWS operations proceeded.
 - No account ID, ARN, or profile configuration value is included in this record.
 

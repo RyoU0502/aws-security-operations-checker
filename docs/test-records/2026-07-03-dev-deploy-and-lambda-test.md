@@ -1,15 +1,17 @@
 # dev環境 初回デプロイ・Lambda実行テスト記録
 
+> **Historical validation record:** This document reflects the implementation and schema at the time of testing and may differ from the current repository state. See [README.md](../../README.md) for the current specification.
+
 ## 実施日
 
 2026-07-03
 
 ## 対象環境
 
-- AWS Account: `<aws-account-id>`
+- AWS Account: `<ACCOUNT_ID>`
 - Region: ap-northeast-1
 - Environment: dev
-- Stack: AwsSecurityOpsChecker-dev
+- Stack: `<STACK_NAME>`
 
 ## 目的
 
@@ -18,19 +20,19 @@ CDKで作成したdev環境において、LambdaからDynamoDBへサンプルチ
 ## デプロイ対象
 
 - S3 Bucket
-  - aso-checker-dev-`<account-id>`-ap-northeast-1
+  - `<RESULTS_BUCKET_NAME>`
 - DynamoDB Table
-  - aso-checker-results-dev-`<account-id>`-ap-northeast-1
+  - `<RESULTS_TABLE_NAME>`
 - Lambda Function
-  - aso-checker-runner-dev
+  - `<CHECKER_FUNCTION_NAME>`
 - CloudWatch Logs LogGroup
-  - /aws/lambda/aso-checker-runner-dev
+  - `<CHECKER_LOG_GROUP_NAME>`
 - IAM Role / Policy
 
 ## 実施コマンド
 
 ```bash
-npx cdk deploy -c env=dev --profile <profile-name>
+npx cdk deploy -c env=dev --profile <DEPLOY_PROFILE>
 ```
 
 ## デプロイ結果
@@ -38,25 +40,25 @@ npx cdk deploy -c env=dev --profile <profile-name>
 成功。
 
 ```text
-✅  AwsSecurityOpsChecker-dev
+✅  <STACK_NAME>
 
-CheckerFunctionName = aso-checker-runner-dev
+CheckerFunctionName = <CHECKER_FUNCTION_NAME>
 EnvironmentName = dev
 ProjectName = aws-security-operations-checker
-ResultsBucketName = aso-checker-dev-<account-id>-ap-northeast-1
-ResultsTableName = aso-checker-results-dev-<account-id>-ap-northeast-1
+ResultsBucketName = <RESULTS_BUCKET_NAME>
+ResultsTableName = <RESULTS_TABLE_NAME>
 ```
 
 ## Lambda手動実行
 
 ```bash
 aws lambda invoke \
-  --function-name aso-checker-runner-dev \
+  --function-name <CHECKER_FUNCTION_NAME> \
   --payload '{}' \
   --cli-binary-format raw-in-base64-out \
-  --profile <profile-name> \
+  --profile <DEPLOY_PROFILE> \
   --region ap-northeast-1 \
-  /tmp/aso-checker-response.json
+  <RESPONSE_FILE>
 ```
 
 ## Lambda実行結果
@@ -81,9 +83,9 @@ aws lambda invoke \
 
 ```bash
 aws dynamodb scan \
-  --table-name aso-checker-results-dev-<account-id>-ap-northeast-1 \
+  --table-name <RESULTS_TABLE_NAME> \
   --limit 5 \
-  --profile <profile-name> \
+  --profile <DEPLOY_PROFILE> \
   --region ap-northeast-1
 ```
 
@@ -128,17 +130,17 @@ aws dynamodb scan \
 
 ```bash
 aws logs describe-log-groups \
-  --log-group-name-prefix /aws/lambda/aso-checker-runner-dev \
+  --log-group-name-prefix <CHECKER_LOG_GROUP_NAME> \
   --query 'logGroups[*].{logGroupName:logGroupName,retentionInDays:retentionInDays}' \
   --output table \
-  --profile <profile-name> \
+  --profile <DEPLOY_PROFILE> \
   --region ap-northeast-1
 ```
 
 ## 確認結果
 
 ```text
-/aws/lambda/aso-checker-runner-dev    7
+<CHECKER_LOG_GROUP_NAME>    7
 ```
 
 ## 結果

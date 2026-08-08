@@ -63,9 +63,8 @@ flowchart TD
         direction TB
         results_table["DynamoDB ResultsTable"]
         s3_configuration["S3 account-level<br/>Public Access Block configuration"]
-        logs["CloudWatch Logs"]
-        execution_role["Checker Lambda execution role<br/>DynamoDB PutItem: ResultsTable only<br/>S3 GetAccountPublicAccessBlock<br/>AWSLambdaBasicExecutionRole"]
-        results_bucket["S3 results bucket"]
+        logs["Dedicated CloudWatch Logs LogGroup"]
+        execution_role["Checker Lambda execution role<br/>DynamoDB PutItem: ResultsTable ARN<br/>Logs stream writes: dedicated LogGroup<br/>S3 GetAccountPublicAccessBlock: Resource *"]
     end
 
     cdk_stack["CDK stack"]
@@ -78,10 +77,15 @@ flowchart TD
     handler -. "Platform logs" .-> logs
     runner -. "Application logs" .-> logs
     execution_role -. "Permissions attached to Lambda" .-> handler
-    cdk_stack -. "Provisions" .-> results_bucket
+    cdk_stack -. "Provisions" .-> handler
+    cdk_stack -. "Provisions" .-> results_table
+    cdk_stack -. "Provisions" .-> logs
+    cdk_stack -. "Provisions" .-> execution_role
 ```
 
-The Lambda returns the same check-run data only after the DynamoDB `PutItem` succeeds. Current Checker results are stored in DynamoDB. The S3 results bucket is provisioned by the CDK stack but is not part of the current result path. Its future role is not finalized.
+The Lambda returns the same check-run data only after the DynamoDB `PutItem` succeeds. Current Checker results are stored in DynamoDB. The application stack does not provision a results S3 bucket.
+
+The current stack outputs are `ProjectName`, `EnvironmentName`, `ResultsTableName`, and `CheckerFunctionName`.
 
 ## Repository structure
 
@@ -116,9 +120,9 @@ You need:
 
 The deployed Lambda runtime is Python 3.12, so Python 3.12 is the recommended local version. Public validation used Python 3.12.13. The locked dependency tree currently resolves the project-local AWS CDK CLI to `2.1134.0` and `aws-cdk-lib` to `2.263.0`, so the examples use `npx cdk`.
 
-Local setup, tests, audits, and credential-isolated synthesis were reproduced from a sanitized snapshot with Node.js `24.14.1`, npm `11.11.0`, and AWS CLI `2.34.19`. This is a validated combination for the documented local workflow, not a declaration of minimum supported versions. AWS deployment and runtime verification were not reproduced as part of this validation.
+Local setup, tests, audits, and credential-isolated synthesis were reproduced from an earlier sanitized snapshot with Node.js `24.14.1`, npm `11.11.0`, and AWS CLI `2.34.19`. This is a validated combination for that documented workflow, not a declaration of minimum supported versions. See [Validation status](#validation-status) for the distinction between historical AWS reproduction and the current HEAD.
 
-Deployment creates or updates S3, DynamoDB, Lambda, CloudWatch Logs, IAM, and supporting CloudFormation/CDK resources. Review the generated template and your deployment permissions before deploying.
+Deployment creates or updates DynamoDB, Lambda, CloudWatch Logs, IAM, and supporting CloudFormation/CDK resources. CDK bootstrap assets are separate shared deployment infrastructure and can use S3. Review the generated template and your deployment permissions before deploying.
 
 ## Installation
 
@@ -147,9 +151,19 @@ npm test
 - `npm run test:cdk` runs the Jest assertions against the synthesized CDK construct model, including IAM scope checks.
 - `npm test` runs the CDK test suite followed by the Lambda test suite.
 
+The latest local validation for the current HEAD completed successfully:
+
+- TypeScript build: passed
+- Jest/CDK: 38 tests passed
+- Python: 39 tests passed using Python 3.12.13
+- Development synthesis: passed
+- Production synthesis: passed
+
 ## CDK synthesis
 
-The CDK application supports only the `dev` and `prod` logical environments. Select one explicitly with the `env` context value. The application requires `CDK_DEFAULT_ACCOUNT`; an AWS profile normally supplies the account and region context. If no region is supplied, the application defaults to `ap-northeast-1`.
+The CDK application supports only the `dev` and `prod` logical environments. Select one explicitly with the `env` context value; missing or invalid values fail closed. `CDK_DEFAULT_ACCOUNT` is required and must contain exactly 12 digits. The account ID is resolved from the CDK execution environment and is not hard-coded in source. An AWS profile normally supplies the account and region context.
+
+If `CDK_DEFAULT_REGION` is unset, the application defaults to `ap-northeast-1`. An empty value, whitespace-only value, or value with leading or trailing whitespace is rejected rather than normalized.
 
 In all command examples below, values in angle brackets, such as `<AWS_PROFILE>`, `<ACCOUNT_ID>`, `<REGION>`, and `<STACK_NAME>`, are placeholders. Replace each placeholder with the value for your environment before running the command, and do not include the angle brackets themselves.
 
@@ -284,19 +298,19 @@ The DynamoDB partition key is `resultId`. All results in one run receive the sam
 
 ## IAM and security
 
-The current Checker Lambda execution role has:
+The current Checker Lambda execution role uses explicit inline permissions:
 
-- `dynamodb:PutItem` scoped to the ResultsTable only
-- `s3:GetAccountPublicAccessBlock` with `Resource: "*"`
-- The AWS-managed `AWSLambdaBasicExecutionRole` policy for CloudWatch Logs
+- DynamoDB: `dynamodb:PutItem`, scoped to the ResultsTable ARN only
+- CloudWatch Logs: `logs:CreateLogStream` and `logs:PutLogEvents`, scoped to the Checker's dedicated LogGroup only
+- S3: `s3:GetAccountPublicAccessBlock` with `Resource: "*"`
 
 `Resource: "*"` is required by the account-level S3 API because that operation does not support a bucket or other resource-level scope. It does not grant wildcard S3 actions: the only allowed S3 action is `s3:GetAccountPublicAccessBlock`.
+
+The role does not use the AWS-managed `AWSLambdaBasicExecutionRole` policy and does not receive `logs:CreateLogGroup`. The CDK stack creates the dedicated LogGroup before the function, so the runtime role needs only stream creation and event writes within that group. The role is therefore narrowly scoped where the APIs support it, while retaining the required `Resource: "*"` for the account-level S3 check.
 
 The design adds each Checker's required AWS API permissions explicitly. Adding a Checker must not broaden the existing DynamoDB persistence permission and should use exact actions and resource scopes wherever the target API supports them.
 
 The implementation avoids storing account IDs, resource ARNs, exception text, raw AWS responses, and request identifiers in results. Runner error logs contain the Checker ID, status, and exception type rather than exception text. The Lambda asset excludes Python bytecode files and cache directories, and the tests are outside the asset source directory.
-
-The results bucket blocks all public access and uses S3-managed encryption. These controls apply to the bucket even though current Checker results are stored in DynamoDB.
 
 ## Environment behavior
 
@@ -304,15 +318,15 @@ The implementation currently distinguishes `dev` and `prod` as follows:
 
 | Behavior | `dev` | `prod` |
 |---|---|---|
-| Results bucket removal policy | Destroy | Retain |
-| Results bucket object auto-deletion | Enabled | Disabled |
 | Results table removal policy | Destroy | Retain |
 | Checker log group removal policy | Destroy | Retain |
 | CloudWatch Logs retention | 7 days | 30 days |
 
-Physical names include the logical environment. Bucket and table names also derive uniqueness from the deployment account and region; the Lambda function and its log group include the environment. No source code is tied to a particular account or AWS CLI profile.
+The Lambda runtime accepts only `ENV_NAME=dev` or `ENV_NAME=prod`. Missing or invalid runtime configuration fails closed during module initialization rather than running with an unintended environment value.
 
-Both environments use the same current Checker implementation, Lambda runtime, timeout, memory, DynamoDB on-demand billing mode, S3 encryption, and S3 public-access controls. Development deployment and runtime behavior have been validated. Production has only been synthesized.
+Physical names include the logical environment. The table name also derives uniqueness from the deployment account and region; the Lambda function and its log group include the environment. No account ID is hard-coded in source, and no source code is tied to a particular AWS CLI profile.
+
+Both environments use the same current Checker implementation, Python 3.12 Lambda runtime, 30-second timeout, 128 MB memory allocation, and DynamoDB on-demand billing mode. The current HEAD has passed local development and production synthesis. Its final AWS runtime re-validation is still planned.
 
 ## Cost considerations
 
@@ -322,10 +336,9 @@ The main usage-dependent cost sources are:
 - DynamoDB on-demand writes and stored result data
 - CloudWatch Logs ingestion and retained log data
 - The S3 Control API request made by each check run
-- Storage and requests for the stack's S3 results bucket, although current Checker results are not written there
 - CDK bootstrap and deployment artifacts, such as asset storage and related requests
 
-The quantity-based estimate below is dated 2026-08-03 and uses AWS public pricing for `ap-northeast-1`. It excludes the Free Tier, credits, discounts, tax, and negligible data transfer. It assumes 100 manual Checker invocations per month, 128 MB of Lambda memory, a one-second average duration, one 4 KiB DynamoDB item written per invocation, 10 KiB of CloudWatch Logs per invocation, and no result objects stored in the results bucket.
+The quantity-based estimate below is dated 2026-08-03 and uses AWS public pricing for `ap-northeast-1`. It excludes the Free Tier, credits, discounts, tax, and negligible data transfer. It assumes 100 manual Checker invocations per month, 128 MB of Lambda memory, a one-second average duration, one 4 KiB DynamoDB item written per invocation, and 10 KiB of CloudWatch Logs per invocation.
 
 | Environment | Estimated monthly cost |
 |---|---:|
@@ -336,7 +349,7 @@ Both estimates are less than USD 0.01 per month. `dev` retains Checker logs for 
 
 The DynamoDB table has no TTL configuration, so stored data accumulates. Each additional retained set of 100 items at 4 KiB per item adds approximately USD 0.000109 per month in storage cost. The estimates do not include CDK bootstrap assets, transient deploy, update, or destroy costs, or continuing costs for resources retained after a production stack destroy. The account-level `GetAccountPublicAccessBlock` request is also excluded because its billable SKU could not be determined conclusively from the official AWS Price List.
 
-These values are estimates rather than guaranteed charges. AWS pricing can change, so recheck it before deployment. See the [AWS quantity-based cost estimate](docs/test-records/2026-08-03-aws-cost-estimate.md) for pricing sources, SKUs, exact calculations, and exclusions.
+These values are estimates rather than guaranteed charges. AWS pricing can change, so recheck it before deployment. The detailed [AWS quantity-based cost estimate](docs/test-records/2026-08-03-aws-cost-estimate.md) is a historical snapshot: its Results bucket and auto-delete provider discussion no longer describes the current application stack, while the adopted recurring totals assigned those components zero cost or excluded their lifecycle activity.
 
 ## Cleanup
 
@@ -346,9 +359,9 @@ Confirm the target stack, context environment, profile, retained data, and recen
 npx cdk destroy <STACK_NAME> -c env=dev --profile <AWS_PROFILE>
 ```
 
-In `dev`, the results bucket, its objects, the results table, and the Checker log group are configured for removal with the stack. Review important data before destruction because this is intentionally destructive.
+In `dev`, the results table and Checker log group are configured for removal with the stack. Review important data before destruction because this is intentionally destructive.
 
-In `prod`, the results bucket, results table, and Checker log group use retention policies, and bucket object auto-deletion is disabled. A stack destroy can therefore leave retained data-bearing resources that require explicit manual review and, if appropriate, later cleanup. These resources use explicit physical names, so retained resources can conflict with a later deployment that attempts to create resources with the same names. Resolve retained data and naming conflicts deliberately before redeploying the same environment. Also review CDK bootstrap resources and other deployment artifacts separately. Never assume that destroying the application stack closes an AWS account or removes every account-level artifact.
+In `prod`, the results table and Checker log group use retention policies. A stack destroy can therefore leave retained data-bearing resources that require explicit manual review and, if appropriate, later cleanup. These resources use explicit physical names, so retained resources can conflict with a later deployment that attempts to create resources with the same names. Resolve retained data and naming conflicts deliberately before redeploying the same environment. Also review CDK bootstrap resources and other deployment artifacts separately. Never assume that destroying the application stack closes an AWS account or removes every account-level artifact.
 
 ## Adding another checker
 
@@ -368,10 +381,18 @@ The following are not implemented or not yet completed:
 - No DynamoDB TTL
 - No handling strategy for DynamoDB's 400 KB item limit as aggregate result sets grow
 - No packaged and pinned `boto3` version; the Lambda currently uses the runtime-provided SDK
-- No clean-environment reproduction of AWS deployment and runtime verification; the sanitized snapshot has been validated only through local setup, tests, audits, and credential-isolated synthesis
-- No production deployment or runtime validation
+- No AWS deployment and runtime re-validation of the current HEAD after its post-reproduction hardening and Results bucket removal
+- No production deployment or runtime validation; production has only been synthesized locally
 
 These are roadmap or validation items, not current capabilities.
+
+## Validation status
+
+An earlier sanitized public snapshot was successfully reproduced in AWS. The reproduction covered development deployment, one Lambda invocation, DynamoDB persistence, CloudWatch Logs, and IAM permissions. A separate later cleanup completed the application stack destruction. Production was not deployed.
+
+The current HEAD was changed after that AWS reproduction to harden Checker result validation, remove the unused Results S3 bucket, minimize the Lambda Logs permissions, make runtime `ENV_NAME` validation fail closed, harden CDK environment configuration, and clean up source comments. The current HEAD has passed the TypeScript build, 38 Jest/CDK tests, and 39 Python tests with Python 3.12.13; development and production synthesis passed during the immediately preceding configuration-hardening validation, after which only source comments changed without altering execution logic, types, or CDK configuration, and final local synthesis of the current HEAD is planned before publication. Final AWS runtime re-validation of this exact revision is still planned. Historical AWS records must not be interpreted as runtime validation of the current HEAD.
+
+The development application stack used for the earlier reproduction was subsequently destroyed, and the application environment was cleaned up. The CDK bootstrap stack and its shared bucket, roles, and parameter were intentionally retained for future CDK use. See the [final AWS cleanup record](docs/test-records/2026-08-08-aws-cleanup.md).
 
 ## Relationship to AWS services
 
@@ -390,3 +411,4 @@ Public validation records are available in the repository:
 - [Public snapshot local reproduction validation](docs/test-records/2026-08-02-public-snapshot-local-reproduction.md)
 - [Public snapshot AWS reproduction validation](docs/test-records/2026-08-03-public-snapshot-aws-reproduction.md)
 - [AWS quantity-based cost estimate](docs/test-records/2026-08-03-aws-cost-estimate.md)
+- [Final AWS environment cleanup](docs/test-records/2026-08-08-aws-cleanup.md)

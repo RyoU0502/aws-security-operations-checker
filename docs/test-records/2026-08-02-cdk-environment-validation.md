@@ -1,5 +1,7 @@
 # CDK Environment Context Validation
 
+> **Historical validation record:** This document reflects the implementation at the time of testing and may differ from the current repository state. Later work also hardened CDK account and region validation; see [README.md](../../README.md) for the current specification.
+
 ## Summary
 
 The CDK application previously used the development configuration when the

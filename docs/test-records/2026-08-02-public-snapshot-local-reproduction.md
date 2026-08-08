@@ -1,5 +1,7 @@
 # Public Snapshot Local Reproduction Validation
 
+> **Historical validation record:** This document reflects the snapshot and test counts at the time of testing and may differ from the current repository state. See [README.md](../../README.md) for the current implementation and validation status.
+
 Date: 2026-08-02
 
 ## Scope

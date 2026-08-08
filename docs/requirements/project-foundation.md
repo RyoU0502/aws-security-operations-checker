@@ -1,4 +1,7 @@
 # AWS Security & Operations Checker
+
+> **Historical planning document:** This document preserves early project plans and includes proposals that are not implemented. See [README.md](../../README.md) for the source of truth on the current architecture, functionality, validation status, deployment, and cleanup behavior.
+
 ## project-foundation.md
 
 ## 1. プロジェクト概要

@@ -1,5 +1,7 @@
 # TypeScript No-Emit and Jest Module Resolution Validation
 
+> **Historical validation record:** This document reflects the implementation, synthesized resources, and test counts at the time of testing and may differ from the current repository state. See [README.md](../../README.md) for the current specification.
+
 ## Summary
 
 TypeScript compilation previously emitted JavaScript and declaration files next to the source files. Jest's default module extension order prefers JavaScript over TypeScript, so an extensionless import could load a stale JavaScript file instead of the current TypeScript source. This could cause CDK assertion tests to produce false-positive or false-negative results.
