@@ -8,5 +8,6 @@ export function parseEnvironmentName(value: unknown): EnvironmentName {
     return value;
   }
 
+  // Fail closed so lifecycle policies never fall back to the wrong environment.
   throw new Error(ENVIRONMENT_CONTEXT_ERROR);
 }

@@ -3,6 +3,7 @@ const DEFAULT_REGION = 'ap-northeast-1';
 
 export function parseAccountId(value: string | undefined): string {
   if (value === undefined || !ACCOUNT_ID_PATTERN.test(value)) {
+    // Fail closed rather than target an unresolved or malformed account.
     throw new Error('CDK_DEFAULT_ACCOUNT must be exactly 12 digits.');
   }
 
@@ -15,6 +16,7 @@ export function parseRegion(value: string | undefined): string {
   }
 
   if (value.length === 0 || value.trim() !== value) {
+    // Reject ambiguous configuration instead of silently normalizing it.
     throw new Error(
       'CDK_DEFAULT_REGION must be non-empty and contain no surrounding whitespace.',
     );
