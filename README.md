@@ -1,5 +1,7 @@
 # AWS Security & Operations Checker
 
+**English** | [日本語](README.ja.md)
+
 ## Project overview
 
 AWS Security & Operations Checker is a lightweight, self-hosted, and extensible checker for small AWS environments, learning environments, and focused configuration reviews. A Lambda function runs explicitly registered Checkers to evaluate selected AWS configuration and operational risks, summarizes the results, and stores the completed run in DynamoDB.
@@ -151,13 +153,13 @@ npm test
 - `npm run test:cdk` runs the Jest assertions against the synthesized CDK construct model, including IAM scope checks.
 - `npm test` runs the CDK test suite followed by the Lambda test suite.
 
-The latest local validation for the current HEAD completed successfully:
+The latest build and test validation for the current HEAD completed successfully. Synthesis status is listed separately below:
 
 - TypeScript build: passed
 - Jest/CDK: 38 tests passed
 - Python: 39 tests passed using Python 3.12.13
-- Development synthesis: passed
-- Production synthesis: passed
+- Development synthesis: passed during the immediately preceding configuration-hardening validation; final synthesis of the current HEAD has not yet been rerun and is planned before publication
+- Production synthesis: passed during the immediately preceding configuration-hardening validation; final synthesis of the current HEAD has not yet been rerun and is planned before publication
 
 ## CDK synthesis
 
@@ -179,7 +181,7 @@ CDK_DEFAULT_ACCOUNT=<ACCOUNT_ID> CDK_DEFAULT_REGION=<REGION> npx cdk synth -c en
 CDK_DEFAULT_ACCOUNT=<ACCOUNT_ID> CDK_DEFAULT_REGION=<REGION> npx cdk synth -c env=prod
 ```
 
-Both logical environments have been synthesized during validation. Production has not been deployed or runtime-tested.
+Both logical environments were synthesized successfully during the immediately preceding configuration-hardening validation. Only source comments changed afterward. Final development and production synthesis of the current HEAD has not yet been rerun and is planned before publication. Production has not been deployed or runtime-tested.
 
 ## Deployment
 
@@ -207,7 +209,7 @@ npx cdk diff <STACK_NAME> -c env=dev --profile <AWS_PROFILE>
 npx cdk deploy <STACK_NAME> -c env=dev --profile <AWS_PROFILE>
 ```
 
-Use a profile with only the deployment permissions needed for the generated resources. Always inspect the synthesized template and `cdk diff` output before approving changes. Treat production as a separate release: review its retention behavior, permissions, replacement risks, cleanup plan, and expected cost before considering a production deployment. The existing public validation covers production synthesis only.
+Use a profile with only the deployment permissions needed for the generated resources. Always inspect the synthesized template and `cdk diff` output before approving changes. Treat production as a separate release: review its retention behavior, permissions, replacement risks, cleanup plan, and expected cost before considering a production deployment. The existing public validation covers production synthesis from the immediately preceding configuration-hardening validation only; final production synthesis of the current HEAD is planned before publication.
 
 ## Manual invocation
 
@@ -326,7 +328,7 @@ The Lambda runtime accepts only `ENV_NAME=dev` or `ENV_NAME=prod`. Missing or in
 
 Physical names include the logical environment. The table name also derives uniqueness from the deployment account and region; the Lambda function and its log group include the environment. No account ID is hard-coded in source, and no source code is tied to a particular AWS CLI profile.
 
-Both environments use the same current Checker implementation, Python 3.12 Lambda runtime, 30-second timeout, 128 MB memory allocation, and DynamoDB on-demand billing mode. The current HEAD has passed local development and production synthesis. Its final AWS runtime re-validation is still planned.
+Both environments use the same current Checker implementation, Python 3.12 Lambda runtime, 30-second timeout, 128 MB memory allocation, and DynamoDB on-demand billing mode. Development and production synthesis passed during the immediately preceding configuration-hardening validation, after which only source comments changed. Final synthesis of the current HEAD has not yet been rerun and is planned before publication. Its final AWS runtime re-validation is also still planned.
 
 ## Cost considerations
 
@@ -382,7 +384,7 @@ The following are not implemented or not yet completed:
 - No handling strategy for DynamoDB's 400 KB item limit as aggregate result sets grow
 - No packaged and pinned `boto3` version; the Lambda currently uses the runtime-provided SDK
 - No AWS deployment and runtime re-validation of the current HEAD after its post-reproduction hardening and Results bucket removal
-- No production deployment or runtime validation; production has only been synthesized locally
+- No production deployment or runtime validation; production synthesis passed during the immediately preceding configuration-hardening validation, but final synthesis of the current HEAD has not yet been rerun
 
 These are roadmap or validation items, not current capabilities.
 
