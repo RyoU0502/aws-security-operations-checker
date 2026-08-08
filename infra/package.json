@@ -1,6 +1,9 @@
 {
   "name": "infra",
   "version": "0.1.0",
+  "private": true,
+  "description": "Self-hosted AWS security and configuration checker built with AWS CDK and Lambda.",
+  "license": "MIT",
   "scripts": {
     "build": "tsc",
     "watch": "tsc -w",
