@@ -1,8 +1,7 @@
 import * as cdk from 'aws-cdk-lib';
 import { Template } from 'aws-cdk-lib/assertions';
+import type { EnvironmentName } from '../lib/config/environment';
 import { AppStack } from '../lib/stacks/app-stack';
-
-type EnvironmentName = 'dev' | 'prod';
 
 const accountId = '111111111111';
 const region = 'ap-northeast-1';
@@ -90,6 +89,13 @@ function getResources(statement: Record<string, unknown>): unknown[] {
     ? statement.Resource
     : [statement.Resource];
 }
+
+test.each(environments)(
+  '%s stack synthesizes with a dummy account ID',
+  (envName) => {
+    expect(() => createTemplate(envName)).not.toThrow();
+  },
+);
 
 test.each(environments)(
   '%s template omits all Results bucket resources and output',

@@ -21,13 +21,14 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 
 // Construct は CDK の部品の親クラスのようなもの
 import { Construct } from 'constructs';
+import type { EnvironmentName } from '../config/environment';
 
 // AppConfig:
 // アプリ設定の「型」を定義している
 // TypeScript では interface で「このデータはこういう形です」と決められる
 export interface AppConfig {
   projectName: string;
-  envName: string;
+  envName: EnvironmentName;
   region: string;
   accountId: string;
 }

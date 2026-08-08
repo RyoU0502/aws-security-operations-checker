@@ -9,14 +9,8 @@ import { AppStack } from '../lib/stacks/app-stack';
 
 // 共通設定を読み込む
 import { defaultConfig } from '../lib/config/defaults';
-import {
-  EnvironmentName,
-  parseEnvironmentName,
-} from '../lib/config/environment';
-
-// 環境ごとの設定を読み込む
-import { devConfig } from '../lib/config/env/dev';
-import { prodConfig } from '../lib/config/env/prod';
+import { parseEnvironmentName } from '../lib/config/environment';
+import type { EnvironmentName } from '../lib/config/environment';
 
 // CDKアプリ全体の起点を作る
 // ここから stack をぶら下げていく
@@ -28,14 +22,9 @@ const app = new cdk.App();
 //   npx cdk synth -c env=prod
 //
 // env は必須で、dev / prod 以外ならスタックを作る前に停止する
-const envName = parseEnvironmentName(app.node.tryGetContext('env'));
-
-// 検証済みの envName をキーにして環境別設定を選ぶ
-const environmentConfigs: Record<EnvironmentName, object> = {
-  dev: devConfig,
-  prod: prodConfig,
-};
-const envConfig = environmentConfigs[envName];
+const envName: EnvironmentName = parseEnvironmentName(
+  app.node.tryGetContext('env'),
+);
 
 // 実際に CDK のスタックを1つ作る
 new AppStack(app, `AwsSecurityOpsChecker-${envName}`, {
@@ -47,10 +36,9 @@ new AppStack(app, `AwsSecurityOpsChecker-${envName}`, {
 
   // 自分で定義したアプリ用設定
   // ... はオブジェクトの展開
-  // 共通設定 + 環境別設定 + envName をまとめている
+  // 共通設定 + envName をまとめている
   appConfig: {
     ...defaultConfig,
-    ...envConfig,
     envName,
   },
 });

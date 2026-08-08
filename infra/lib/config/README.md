@@ -8,11 +8,11 @@ This directory contains configuration files used by the CDK application.
   - Shared configuration used across environments.
   - The AWS account ID is resolved from the CDK execution environment instead of being hardcoded.
 
-- `env/dev.ts`
-  - Development environment settings.
+- `aws-environment.ts`
+  - Validates the AWS account ID and region supplied to the CDK application.
 
-- `env/prod.ts`
-  - Production environment settings.
+- `environment.ts`
+  - Defines and validates the supported CDK environment names.
 
 The environment is selected by CDK context, for example:
 
