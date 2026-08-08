@@ -2,6 +2,8 @@
 
 [English](README.md) | **日本語**
 
+[ポートフォリオ概要](docs/portfolio-summary.ja.md)
+
 ## プロジェクト概要
 
 AWS Security & Operations Checkerは、小規模なAWS環境や学習環境、対象を絞った設定レビューに使える、軽量でセルフホスト型の拡張可能なCheckerです。Lambda関数が明示的に登録されたCheckerを実行し、AWSの設定や運用上のリスクをチェックします。実行結果は集約してDynamoDBに保存します。
