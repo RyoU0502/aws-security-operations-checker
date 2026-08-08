@@ -165,22 +165,27 @@ The latest build and test validation for the current HEAD completed successfully
 
 ## CDK synthesis
 
-The CDK application supports only the `dev` and `prod` logical environments. Select one explicitly with the `env` context value; missing or invalid values fail closed. `CDK_DEFAULT_ACCOUNT` is required and must contain exactly 12 digits. The account ID is resolved from the CDK execution environment and is not hard-coded in source. An AWS profile normally supplies the account and region context.
+The CDK application supports only the `dev` and `prod` logical environments. Select one explicitly with the `env` context value; missing or invalid values fail closed. The account ID must contain exactly 12 digits, and the region must be a non-empty value with no surrounding whitespace. Neither value is hard-coded in source.
 
-If `CDK_DEFAULT_REGION` is unset, the application defaults to `ap-northeast-1`. An empty value, whitespace-only value, or value with leading or trailing whitespace is rejected rather than normalized.
+`TARGET_AWS_ACCOUNT` and `TARGET_AWS_REGION` are project-defined explicit overrides. If an override is undefined, the application falls back to `CDK_DEFAULT_ACCOUNT` or `CDK_DEFAULT_REGION` supplied by the CDK CLI. Empty or invalid explicit overrides fail closed instead of falling back, and there is no implicit region default. If neither source provides a valid account and region, synthesis fails closed.
 
 In all command examples below, values in angle brackets, such as `<AWS_PROFILE>`, `<ACCOUNT_ID>`, `<REGION>`, and `<STACK_NAME>`, are placeholders. Replace each placeholder with the value for your environment before running the command, and do not include the angle brackets themselves.
 
 ```bash
-npx cdk synth -c env=dev --profile <AWS_PROFILE>
-npx cdk synth -c env=prod --profile <AWS_PROFILE>
+npx --no-install cdk synth -c env=dev --profile <AWS_PROFILE>
+npx --no-install cdk synth -c env=prod --profile <AWS_PROFILE>
 ```
 
-The current application performs no AWS environment lookups. For credential-isolated synthesis, provide non-sensitive context values directly instead of a profile:
+Normally, the AWS profile allows the CDK CLI to resolve the account and region and pass them to the application as `CDK_DEFAULT_ACCOUNT` and `CDK_DEFAULT_REGION`. The current application performs no AWS environment lookups. For credential-isolated local synthesis, use the project-defined overrides instead of a profile:
 
 ```bash
-CDK_DEFAULT_ACCOUNT=<ACCOUNT_ID> CDK_DEFAULT_REGION=<REGION> npx cdk synth -c env=dev
-CDK_DEFAULT_ACCOUNT=<ACCOUNT_ID> CDK_DEFAULT_REGION=<REGION> npx cdk synth -c env=prod
+TARGET_AWS_ACCOUNT=<ACCOUNT_ID> \
+TARGET_AWS_REGION=<REGION> \
+npx --no-install cdk synth -c env=dev
+
+TARGET_AWS_ACCOUNT=<ACCOUNT_ID> \
+TARGET_AWS_REGION=<REGION> \
+npx --no-install cdk synth -c env=prod
 ```
 
 Both logical environments were synthesized successfully during the immediately preceding configuration-hardening validation. Only source comments changed afterward. Final development and production synthesis of the current HEAD has not yet been rerun and is planned before publication. Production has not been deployed or runtime-tested.

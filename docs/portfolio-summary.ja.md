@@ -21,14 +21,14 @@ AWS Security & Operations Checkerは、小規模なAWS環境の設定確認や�
 
 ## セキュリティ設計
 
-- デプロイ先のAWS Account IDはCDK実行環境から取得し、ソースにはハードコードしていません。
+- デプロイ先のAWS Account IDとリージョンは、プロジェクト独自の`TARGET_AWS_ACCOUNT`と`TARGET_AWS_REGION`で明示できます。overrideが未定義の場合は、CDK CLIから渡される対応する`CDK_DEFAULT_*`を使います。どちらもソースにはハードコードしていません。
 - Lambdaの実行権限は、必要なアクションをインラインポリシーへ明示しています。
 - DynamoDBは、結果TableのARNに対する`dynamodb:PutItem`だけを許可しています。
 - CloudWatch Logsは、専用LogGroupに対する`logs:CreateLogStream`と`logs:PutLogEvents`だけを許可し、`logs:CreateLogGroup`は付与していません。
 - AWS管理policyの`AWSLambdaBasicExecutionRole`は使っていません。
 - S3の権限は`s3:GetAccountPublicAccessBlock`だけです。このアカウントレベルAPIはリソース単位で絞れないため、Resourceは`"*"`にしています。
 - 保存結果にはAccount ID、リソースARN、AWS APIの生レスポンス、リクエストID、例外メッセージを含めません。アプリケーションのエラーログにも例外メッセージは出さず、Checker ID、ステータス、例外の型だけを記録します。LambdaのプラットフォームログにはリクエストIDが含まれることがあるため、公開前の確認が必要です。
-- CDKで選べる環境は`dev`と`prod`だけで、Account IDは12桁を必須としています。リージョン未設定時は`ap-northeast-1`を使い、空文字・空白のみ・前後に空白を含む値は拒否します。Lambda runtimeでも環境設定がない、または不正な場合は、AWS clientやCheckerを動かす前に停止します。
+- CDKで選べる環境は`dev`と`prod`だけです。Account IDは12桁、リージョンは空ではなく前後に空白を含まない値を必須としています。プロジェクト独自の明示的overrideはCDK CLIのdefaultより優先され、不正な明示値からfallbackすることはありません。リージョンの暗黙defaultもなく、設定がない場合や不正な場合はfail closedします。Lambda runtimeでも環境設定がない、または不正な場合は、AWS clientやCheckerを動かす前に停止します。
 
 ## テストと検証状況
 

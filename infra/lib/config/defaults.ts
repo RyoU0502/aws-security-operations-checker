@@ -1,10 +1,16 @@
 import type { AppConfig } from '../stacks/app-stack';
-import { parseAccountId, parseRegion } from './aws-environment';
+import { resolveAccountId, resolveRegion } from './aws-environment';
 
 // Resolve the account at runtime to avoid publishing it in source control.
-const accountId = parseAccountId(process.env.CDK_DEFAULT_ACCOUNT);
+const accountId = resolveAccountId(
+  process.env.TARGET_AWS_ACCOUNT,
+  process.env.CDK_DEFAULT_ACCOUNT,
+);
 
-const region = parseRegion(process.env.CDK_DEFAULT_REGION);
+const region = resolveRegion(
+  process.env.TARGET_AWS_REGION,
+  process.env.CDK_DEFAULT_REGION,
+);
 
 export const defaultConfig: Omit<AppConfig, 'envName'> = {
   projectName: 'aws-security-operations-checker',

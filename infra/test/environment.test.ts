@@ -1,6 +1,8 @@
 import {
   parseAccountId,
   parseRegion,
+  resolveAccountId,
+  resolveRegion,
 } from '../lib/config/aws-environment';
 import { parseEnvironmentName } from '../lib/config/environment';
 
@@ -38,7 +40,7 @@ test.each([
   expect(() => parseEnvironmentName(value)).toThrow(expectedError);
 });
 
-const accountError = 'CDK_DEFAULT_ACCOUNT must be exactly 12 digits.';
+const accountError = 'AWS account ID must be exactly 12 digits.';
 
 test('accepts a 12-digit account ID', () => {
   expect(parseAccountId('111111111111')).toBe('111111111111');
@@ -67,11 +69,7 @@ test('does not include the rejected account ID in its error', () => {
 });
 
 const regionError =
-  'CDK_DEFAULT_REGION must be non-empty and contain no surrounding whitespace.';
-
-test('defaults an undefined region to ap-northeast-1', () => {
-  expect(parseRegion(undefined)).toBe('ap-northeast-1');
-});
+  'AWS region must be provided and contain no surrounding whitespace.';
 
 test.each(['ap-northeast-1', 'us-west-2'])(
   'preserves the valid region %s',
@@ -81,6 +79,7 @@ test.each(['ap-northeast-1', 'us-west-2'])(
 );
 
 test.each([
+  ['undefined', undefined],
   ['an empty string', ''],
   ['whitespace only', '   '],
   ['leading whitespace', ' ap-northeast-1'],
@@ -95,4 +94,56 @@ test('does not include the rejected region in its error', () => {
 
   expect(errorMessage).toBe(regionError);
   expect(errorMessage).not.toContain(rejectedValue);
+});
+
+test('explicit account override wins over the CDK default', () => {
+  expect(resolveAccountId('111111111111', '222222222222')).toBe(
+    '111111111111',
+  );
+});
+
+test('explicit region override wins over the CDK default', () => {
+  expect(resolveRegion('ap-northeast-1', 'us-east-1')).toBe(
+    'ap-northeast-1',
+  );
+});
+
+test('uses the CDK default account when the explicit override is missing', () => {
+  expect(resolveAccountId(undefined, '222222222222')).toBe('222222222222');
+});
+
+test('uses the CDK default region when the explicit override is missing', () => {
+  expect(resolveRegion(undefined, 'us-east-1')).toBe('us-east-1');
+});
+
+test.each([
+  ['an empty string', ''],
+  ['an invalid value', 'invalid'],
+])(
+  'does not fall back from explicit account override with %s',
+  (_description, explicitAccount) => {
+    expect(() =>
+      resolveAccountId(explicitAccount, '222222222222'),
+    ).toThrow(accountError);
+  },
+);
+
+test.each([
+  ['an empty string', ''],
+  ['surrounding whitespace', ' ap-northeast-1 '],
+])(
+  'does not fall back from explicit region override with %s',
+  (_description, explicitRegion) => {
+    expect(() => resolveRegion(explicitRegion, 'us-east-1')).toThrow(
+      regionError,
+    );
+  },
+);
+
+test('rejects a missing explicit and CDK default account', () => {
+  expect(() => resolveAccountId(undefined, undefined)).toThrow(accountError);
+});
+
+test('rejects a missing explicit and CDK default region', () => {
+  expect(() => resolveRegion(undefined, undefined)).toThrow(regionError);
 });

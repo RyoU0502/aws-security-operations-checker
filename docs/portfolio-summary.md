@@ -21,14 +21,14 @@ The current checker reads the account-level S3 Block Public Access configuration
 
 ## Security design
 
-- The deployment account ID is resolved from the CDK execution environment instead of being hard-coded in source.
+- The deployment account and region can be set with the project-defined `TARGET_AWS_ACCOUNT` and `TARGET_AWS_REGION` overrides. When an override is undefined, the application uses the corresponding `CDK_DEFAULT_*` value supplied by the CDK CLI. Neither value is hard-coded in source.
 - The Lambda role uses explicit inline least-privilege permissions.
 - DynamoDB access is limited to `dynamodb:PutItem` on the results table ARN.
 - CloudWatch Logs access is limited to `logs:CreateLogStream` and `logs:PutLogEvents` on the dedicated log group; the role has no `logs:CreateLogGroup` permission.
 - The role does not use the AWS-managed `AWSLambdaBasicExecutionRole` policy.
 - `s3:GetAccountPublicAccessBlock` is the only S3 action. Its resource is `"*"` because this account-level API does not support resource-level authorization.
 - Stored results omit AWS account IDs, resource ARNs, raw API responses, request IDs, and exception text. Custom error logs record the checker ID, status, and exception type rather than exception text. Lambda platform logs can still contain request IDs and require review before publication.
-- CDK accepts only `dev` or `prod` and requires a 12-digit account value. An unset region defaults to `ap-northeast-1`; empty, whitespace-only, or surrounding-whitespace values are rejected. The Lambda runtime also rejects missing or invalid environment configuration before AWS clients or checkers run.
+- CDK accepts only `dev` or `prod`, requires a 12-digit account value, and requires a non-empty region with no surrounding whitespace. Explicit project overrides take precedence over CDK CLI defaults; invalid explicit values do not fall back, and there is no implicit region default. Missing or invalid configuration fails closed. The Lambda runtime also rejects missing or invalid environment configuration before AWS clients or checkers run.
 
 ## Testing and validation
 

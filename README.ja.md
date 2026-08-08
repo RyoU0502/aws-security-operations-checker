@@ -165,22 +165,27 @@ npm test
 
 ## CDK synth
 
-CDKアプリケーションが対応する論理環境は`dev`と`prod`だけです。`env`のcontextでどちらかを明示的に選んでください。値がない場合や不正な場合はエラーになります。`CDK_DEFAULT_ACCOUNT`は必須で、12桁ちょうどである必要があります。アカウントIDはCDKの実行環境から取得し、ソースコードにはハードコードしていません。通常はAWSプロファイルからアカウントとリージョンのcontextが渡されます。
+CDKアプリケーションが対応する論理環境は`dev`と`prod`だけです。`env`のcontextでどちらかを明示的に選んでください。値がない場合や不正な場合はエラーになります。Account IDは12桁ちょうど、リージョンは空ではなく前後に空白を含まない値である必要があります。どちらもソースコードにはハードコードしていません。
 
-`CDK_DEFAULT_REGION`が未設定の場合は`ap-northeast-1`を使います。空文字、空白だけの値、前後に空白がある値は正規化せずエラーにします。
+`TARGET_AWS_ACCOUNT`と`TARGET_AWS_REGION`は、このプロジェクト独自の明示的overrideです。overrideが未定義の場合は、CDK CLIから渡される`CDK_DEFAULT_ACCOUNT`または`CDK_DEFAULT_REGION`へfallbackします。明示的overrideが空または不正な場合はfallbackせずfail closedし、リージョンの暗黙defaultもありません。どちらの入力元からも有効なAccount IDとリージョンを解決できなければsynthを停止します。
 
 以下のコマンドにある`<AWS_PROFILE>`、`<ACCOUNT_ID>`、`<REGION>`、`<STACK_NAME>`などはプレースホルダーです。実行前に自分の環境の値へ置き換え、山括弧自体は含めないでください。
 
 ```bash
-npx cdk synth -c env=dev --profile <AWS_PROFILE>
-npx cdk synth -c env=prod --profile <AWS_PROFILE>
+npx --no-install cdk synth -c env=dev --profile <AWS_PROFILE>
+npx --no-install cdk synth -c env=prod --profile <AWS_PROFILE>
 ```
 
-現在のアプリケーションはAWS環境へのlookupを行いません。AWS認証情報を使わずにsynthする場合は、プロファイルの代わりに機密情報を含まないcontextを直接指定します。
+通常はAWSプロファイルからCDK CLIがAccount IDとリージョンを解決し、`CDK_DEFAULT_ACCOUNT`と`CDK_DEFAULT_REGION`としてアプリケーションへ渡します。現在のアプリケーションはAWS環境へのlookupを行いません。認証情報を使わないローカルsynthでは、プロファイルの代わりにプロジェクト独自のoverrideを使用します。
 
 ```bash
-CDK_DEFAULT_ACCOUNT=<ACCOUNT_ID> CDK_DEFAULT_REGION=<REGION> npx cdk synth -c env=dev
-CDK_DEFAULT_ACCOUNT=<ACCOUNT_ID> CDK_DEFAULT_REGION=<REGION> npx cdk synth -c env=prod
+TARGET_AWS_ACCOUNT=<ACCOUNT_ID> \
+TARGET_AWS_REGION=<REGION> \
+npx --no-install cdk synth -c env=dev
+
+TARGET_AWS_ACCOUNT=<ACCOUNT_ID> \
+TARGET_AWS_REGION=<REGION> \
+npx --no-install cdk synth -c env=prod
 ```
 
 両方の論理環境とも、直前の設定強化時の検証でsynthに成功しています。その後の変更はソースコメントだけです。現在のHEADそのものではdev / prodの最終synthをまだ再実行しておらず、公開前に実行する予定です。prodはデプロイもruntimeテストも行っていません。
