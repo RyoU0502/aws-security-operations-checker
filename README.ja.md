@@ -158,10 +158,10 @@ npm test
 現在のHEADに対するbuildとテストの最新結果は、すべて成功しています。synthの状況は別に記載します。
 
 - TypeScriptビルド: 成功
-- Jest/CDK: 38件のテストに成功
+- Jest/CDK: 48件のテストに成功
 - Python: Python 3.12.13で39件のテストに成功
-- dev synth: 直前の設定強化時の検証で成功。現在のHEADそのものではまだ再実行しておらず、公開前に最終synthを実行予定
-- prod synth: 直前の設定強化時の検証で成功。現在のHEADそのものではまだ再実行しておらず、公開前に最終synthを実行予定
+- dev synth: 現在のHEADについて、AWS認証情報を使わず、lookupを行わない条件で成功
+- prod synth: 現在のHEADについて、AWS認証情報を使わず、lookupを行わない条件で成功
 
 ## CDK synth
 
@@ -188,7 +188,7 @@ TARGET_AWS_REGION=<REGION> \
 npx --no-install cdk synth -c env=prod
 ```
 
-両方の論理環境とも、直前の設定強化時の検証でsynthに成功しています。その後の変更はソースコメントだけです。現在のHEADそのものではdev / prodの最終synthをまだ再実行しておらず、公開前に実行する予定です。prodはデプロイもruntimeテストも行っていません。
+現在のHEADでは、AWS認証情報を使わず、lookupを行わない条件でdev / prod両方のsynthに成功しています。この検証では、`TARGET_AWS_REGION=ap-northeast-1`が、`us-east-1`を指定した`AWS_REGION`と`AWS_DEFAULT_REGION`より優先されることも確認しました。prodはデプロイもruntimeテストも行っていません。
 
 ## デプロイ
 
@@ -216,7 +216,7 @@ npx cdk diff <STACK_NAME> -c env=dev --profile <AWS_PROFILE>
 npx cdk deploy <STACK_NAME> -c env=dev --profile <AWS_PROFILE>
 ```
 
-生成されるリソースに必要なデプロイ権限だけを持つプロファイルを使ってください。変更を承認する前に、必ずsynth済みのテンプレートと`cdk diff`の出力を確認します。prodは別リリースとして扱い、デプロイを検討する前に、保持設定、権限、リソース置換のリスク、クリーンアップ手順、想定コストを確認してください。公開済みの検証でprodについて確認したのは、直前の設定強化時のsynthだけです。現在のHEADそのものに対するprodの最終synthは、公開前に実行する予定です。
+生成されるリソースに必要なデプロイ権限だけを持つプロファイルを使ってください。変更を承認する前に、必ずsynth済みのテンプレートと`cdk diff`の出力を確認します。prodは別リリースとして扱い、デプロイを検討する前に、保持設定、権限、リソース置換のリスク、クリーンアップ手順、想定コストを確認してください。現在のHEADでは、AWS認証情報を使わないprodのローカルsynthに成功していますが、prodのデプロイとruntimeテストは行っていません。
 
 ## 手動呼び出し
 
@@ -335,7 +335,7 @@ Lambda runtimeが受け付けるのは`ENV_NAME=dev`または`ENV_NAME=prod`だ�
 
 物理名には論理環境を含めます。テーブル名は、デプロイ先のアカウントとリージョンも使って一意になるようにしています。Lambda関数とロググループの名前には環境名を含めます。アカウントIDはソースコードにハードコードしておらず、特定のAWS CLIプロファイルに依存するコードもありません。
 
-両環境とも、同じChecker実装、Python 3.12のLambda runtime、30秒のタイムアウト、128 MBのメモリ、DynamoDBのオンデマンド課金を使います。dev / prodのsynthは、直前の設定強化時の検証で成功しています。その後の変更はソースコメントだけです。現在のHEADそのものでは最終synthをまだ再実行しておらず、公開前に実行する予定です。AWS上での最終runtime再検証も公開前に行う予定です。
+両環境とも、同じChecker実装、Python 3.12のLambda runtime、30秒のタイムアウト、128 MBのメモリ、DynamoDBのオンデマンド課金を使います。現在のHEADでは、AWS認証情報を使わないdev / prodのsynthに成功し、生成した両方のテンプレートも最終ローカル検証に合格しました。現在のHEADをAWSへデプロイして行うruntimeの再検証は、引き続き公開前に実施する予定です。
 
 ## コストに関する考慮事項
 
@@ -391,7 +391,7 @@ npx cdk destroy <STACK_NAME> -c env=dev --profile <AWS_PROFILE>
 - 集約する結果が増えた場合のDynamoDBの400 KBアイテム上限への対応方針なし
 - `boto3`のパッケージ化とバージョン固定なし。現在はLambda runtimeが提供するSDKを使用
 - AWS再現検証後の設定強化とResults Bucket削除を反映した現在のHEADについて、AWSへのデプロイとruntime再検証は未実施
-- prodのデプロイとruntime検証は未実施。prodのsynthは直前の設定強化時の検証で成功したが、現在のHEADそのものでは最終synthをまだ再実行していない
+- prodのデプロイとruntime検証は未実施。現在のHEADで確認済みなのは、AWS認証情報を使わないprodのローカルsynthまで
 
 これらは今後の対応や検証項目であり、現在使える機能ではありません。
 
@@ -401,7 +401,7 @@ npx cdk destroy <STACK_NAME> -c env=dev --profile <AWS_PROFILE>
 
 このAWS再現検証の後、現在のHEADには次の変更を加えました。Checkerの結果検証の強化、未使用だったResults S3 Bucketの削除、LambdaのCloudWatch Logs権限の最小化、runtimeで`ENV_NAME`が不正な場合に安全側で停止する処理、CDK環境設定の強化、ソースコメントの整理です。
 
-現在のHEADでは、TypeScriptビルド、38件のJest/CDKテスト、Python 3.12.13による39件のPythonテストに成功しています。devとprodのsynthは、直前の設定強化時の検証で成功しました。その後に変更したのはソースコメントだけで、実行ロジック、型、CDK設定は変えていません。ただし、現在のHEADそのものに対する最終的なローカルsynthは、公開前にもう一度行う予定です。現在のHEADについて、AWS上での最終runtime検証も公開前に行う予定です。過去のAWS検証記録は、現在のHEADに対するruntime検証として扱わないでください。
+現在のHEADでは、TypeScriptビルド、48件のJest/CDKテスト、Python 3.12.13による39件のPythonテストに成功しています。AWS認証情報を使わず、lookupを行わない条件でdev / prodのsynthにも成功しました。生成したテンプレートの最終ローカル検証にも合格し、プロジェクト独自の対象リージョンが競合する標準のAWSリージョン環境変数より優先されることも確認しています。作業ツリーの機密情報、到達可能なGit履歴、Markdownの相対リンクにも問題はなく、ローカルで生成した成果物は削除済みです。現在のHEADをAWSへデプロイして行うruntimeの再検証は、引き続き公開前に実施する予定です。過去のAWS検証記録を現在のHEADに対するruntime検証として扱うことはできず、prodはこれまでデプロイもruntimeテストも行っていません。
 
 以前の再現検証で使ったdevのApplication Stackは、その後destroyし、アプリケーション環境もクリーンアップ済みです。CDK bootstrap stackと共有バケット、ロール、パラメータは、今後のCDK利用に備えて意図的に残しています。詳しくは[最終AWSクリーンアップ記録](docs/test-records/2026-08-08-aws-cleanup.md)を参照してください。
 

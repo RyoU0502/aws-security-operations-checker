@@ -35,14 +35,14 @@ AWS Security & Operations Checkerは、小規模なAWS環境の設定確認や�
 ### 現在のHEAD
 
 - TypeScript build: 成功
-- Jest/CDK: 38件成功
+- Jest/CDK: 48件成功
 - Python: Python 3.12.13で39件成功
 
 CDKの環境設定、IAMの範囲、Results Bucketが存在しないこと、Checkerの判定、結果形式の検証、エラー時の情報抑制、サマリー、DynamoDB保存、Lambdaの環境設定などをテストしています。
 
 ### CDK synth
 
-`dev`と`prod`のsynthは、直前の設定強化時の検証で成功しています。その後に変わったのはソースコメントだけで、実行ロジック、型、CDK設定は変えていません。ただし、現在のHEADそのものでは最終synthをまだ再実行しておらず、公開前に実施する予定です。
+現在のHEADでは、AWS認証情報を使わず、lookupを行わない条件で`dev`と`prod`のsynthに成功しています。生成したテンプレートは最終ローカル検証に合格し、`TARGET_AWS_REGION=ap-northeast-1`が、`us-east-1`を指定した`AWS_REGION`と`AWS_DEFAULT_REGION`より優先されることも確認しました。
 
 ### AWS上での再現検証
 

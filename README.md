@@ -158,10 +158,10 @@ npm test
 The latest build and test validation for the current HEAD completed successfully. Synthesis status is listed separately below:
 
 - TypeScript build: passed
-- Jest/CDK: 38 tests passed
+- Jest/CDK: 48 tests passed
 - Python: 39 tests passed using Python 3.12.13
-- Development synthesis: passed during the immediately preceding configuration-hardening validation; final synthesis of the current HEAD has not yet been rerun and is planned before publication
-- Production synthesis: passed during the immediately preceding configuration-hardening validation; final synthesis of the current HEAD has not yet been rerun and is planned before publication
+- Development synthesis: the current HEAD passed credential-isolated synthesis with no AWS lookups
+- Production synthesis: the current HEAD passed credential-isolated synthesis with no AWS lookups
 
 ## CDK synthesis
 
@@ -188,7 +188,7 @@ TARGET_AWS_REGION=<REGION> \
 npx --no-install cdk synth -c env=prod
 ```
 
-Both logical environments were synthesized successfully during the immediately preceding configuration-hardening validation. Only source comments changed afterward. Final development and production synthesis of the current HEAD has not yet been rerun and is planned before publication. Production has not been deployed or runtime-tested.
+The current HEAD passed credential-isolated synthesis for both logical environments with no AWS lookups. The validation also confirmed that `TARGET_AWS_REGION=ap-northeast-1` takes precedence over `AWS_REGION` and `AWS_DEFAULT_REGION` set to `us-east-1`. Production has not been deployed or runtime-tested.
 
 ## Deployment
 
@@ -216,7 +216,7 @@ npx cdk diff <STACK_NAME> -c env=dev --profile <AWS_PROFILE>
 npx cdk deploy <STACK_NAME> -c env=dev --profile <AWS_PROFILE>
 ```
 
-Use a profile with only the deployment permissions needed for the generated resources. Always inspect the synthesized template and `cdk diff` output before approving changes. Treat production as a separate release: review its retention behavior, permissions, replacement risks, cleanup plan, and expected cost before considering a production deployment. The existing public validation covers production synthesis from the immediately preceding configuration-hardening validation only; final production synthesis of the current HEAD is planned before publication.
+Use a profile with only the deployment permissions needed for the generated resources. Always inspect the synthesized template and `cdk diff` output before approving changes. Treat production as a separate release: review its retention behavior, permissions, replacement risks, cleanup plan, and expected cost before considering a production deployment. The current HEAD has passed credential-isolated local production synthesis, but production has not been deployed or runtime-tested.
 
 ## Manual invocation
 
@@ -335,7 +335,7 @@ The Lambda runtime accepts only `ENV_NAME=dev` or `ENV_NAME=prod`. Missing or in
 
 Physical names include the logical environment. The table name also derives uniqueness from the deployment account and region; the Lambda function and its log group include the environment. No account ID is hard-coded in source, and no source code is tied to a particular AWS CLI profile.
 
-Both environments use the same current Checker implementation, Python 3.12 Lambda runtime, 30-second timeout, 128 MB memory allocation, and DynamoDB on-demand billing mode. Development and production synthesis passed during the immediately preceding configuration-hardening validation, after which only source comments changed. Final synthesis of the current HEAD has not yet been rerun and is planned before publication. Its final AWS runtime re-validation is also still planned.
+Both environments use the same current Checker implementation, Python 3.12 Lambda runtime, 30-second timeout, 128 MB memory allocation, and DynamoDB on-demand billing mode. The current HEAD passed credential-isolated development and production synthesis, and both synthesized templates passed the final local sanity checks. Final AWS deployment and runtime re-validation of the current HEAD are still planned before publication.
 
 ## Cost considerations
 
@@ -391,7 +391,7 @@ The following are not implemented or not yet completed:
 - No handling strategy for DynamoDB's 400 KB item limit as aggregate result sets grow
 - No packaged and pinned `boto3` version; the Lambda currently uses the runtime-provided SDK
 - No AWS deployment and runtime re-validation of the current HEAD after its post-reproduction hardening and Results bucket removal
-- No production deployment or runtime validation; production synthesis passed during the immediately preceding configuration-hardening validation, but final synthesis of the current HEAD has not yet been rerun
+- No production deployment or runtime validation; the current HEAD has passed credential-isolated local production synthesis only
 
 These are roadmap or validation items, not current capabilities.
 
@@ -399,7 +399,7 @@ These are roadmap or validation items, not current capabilities.
 
 An earlier sanitized public snapshot was successfully reproduced in AWS. The reproduction covered development deployment, one Lambda invocation, DynamoDB persistence, CloudWatch Logs, and IAM permissions. A separate later cleanup completed the application stack destruction. Production was not deployed.
 
-The current HEAD was changed after that AWS reproduction to harden Checker result validation, remove the unused Results S3 bucket, minimize the Lambda Logs permissions, make runtime `ENV_NAME` validation fail closed, harden CDK environment configuration, and clean up source comments. The current HEAD has passed the TypeScript build, 38 Jest/CDK tests, and 39 Python tests with Python 3.12.13; development and production synthesis passed during the immediately preceding configuration-hardening validation, after which only source comments changed without altering execution logic, types, or CDK configuration, and final local synthesis of the current HEAD is planned before publication. Final AWS runtime re-validation of this exact revision is still planned. Historical AWS records must not be interpreted as runtime validation of the current HEAD.
+The current HEAD was changed after that AWS reproduction to harden Checker result validation, remove the unused Results S3 bucket, minimize the Lambda Logs permissions, make runtime `ENV_NAME` validation fail closed, harden CDK environment configuration, and clean up source comments. The current HEAD has passed the TypeScript build, 48 Jest/CDK tests, and 39 Python tests with Python 3.12.13. It also passed credential-isolated development and production synthesis with no AWS lookups; the synthesized templates passed the final local sanity checks, and the region regression check confirmed that the project-defined target region overrides conflicting standard AWS region variables. Working-tree privacy, reachable Git history, and Markdown relative-link scans found no issues, and generated local artifacts were cleaned up. Final AWS deployment and runtime re-validation of this exact revision is still planned before publication. Historical AWS records must not be interpreted as runtime validation of the current HEAD, and production has never been deployed or runtime-tested.
 
 The development application stack used for the earlier reproduction was subsequently destroyed, and the application environment was cleaned up. The CDK bootstrap stack and its shared bucket, roles, and parameter were intentionally retained for future CDK use. See the [final AWS cleanup record](docs/test-records/2026-08-08-aws-cleanup.md).
 

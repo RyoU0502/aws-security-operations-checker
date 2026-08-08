@@ -35,14 +35,14 @@ The current checker reads the account-level S3 Block Public Access configuration
 ### Current HEAD
 
 - TypeScript build: passed
-- Jest/CDK: 38 tests passed
+- Jest/CDK: 48 tests passed
 - Python: 39 tests passed with Python 3.12.13
 
 The tests cover CDK environment parsing, IAM scopes, the absence of a results bucket, checker decisions, result-contract validation, sanitized failures, summaries, DynamoDB persistence, and Lambda configuration behavior.
 
 ### CDK synthesis
 
-Both `dev` and `prod` synthesis succeeded during the immediately preceding configuration-hardening revision. The changes after that validation were source comments only; execution logic, types, and CDK configuration did not change. Final synthesis of the current HEAD has not yet been rerun and is planned before publication.
+The current HEAD passed credential-isolated `dev` and `prod` synthesis with no AWS lookups. The synthesized templates passed the final local sanity checks, and the validation confirmed that `TARGET_AWS_REGION=ap-northeast-1` takes precedence over `AWS_REGION` and `AWS_DEFAULT_REGION` set to `us-east-1`.
 
 ### AWS reproduction
 
