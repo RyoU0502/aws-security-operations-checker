@@ -44,11 +44,15 @@ The tests cover CDK environment parsing, IAM scopes, the absence of a results bu
 
 The current HEAD passed credential-isolated `dev` and `prod` synthesis with no AWS lookups. The synthesized templates passed the final local sanity checks, and the validation confirmed that `TARGET_AWS_REGION=ap-northeast-1` takes precedence over `AWS_REGION` and `AWS_DEFAULT_REGION` set to `us-east-1`.
 
-### AWS reproduction
+### Historical AWS reproduction
 
 An earlier sanitized public snapshot was successfully reproduced in AWS. That validation covered a development deployment, Lambda invocation, DynamoDB persistence, CloudWatch Logs, and IAM permissions. The application stack used for the reproduction was later destroyed and its application resources were cleaned up.
 
-This historical AWS validation is not runtime validation of the current HEAD. Deployment and runtime re-validation of the current revision are still planned before publication. Production has never been deployed or runtime-tested.
+This historical validation is separate from the AWS validation of application and infrastructure revision `d999670`.
+
+### Final release candidate AWS validation
+
+The application and infrastructure revision validated in AWS was `d999670`. It passed final local validation and final AWS deployment/runtime validation in `dev`. One Lambda invocation confirmed the expected end-to-end `PASS` behavior, the persisted DynamoDB result was semantically equivalent to the response, and the least-privilege IAM permissions worked at runtime. The subsequent documentation-only update records this validation evidence and does not alter the validated application code. The development Application Stack and its application resources were removed after validation. The CDK bootstrap foundation was intentionally retained and its asset bucket was returned to empty. Production has never been deployed or runtime-tested.
 
 ## Current scope
 
@@ -82,4 +86,4 @@ The project also does not yet provide a dedicated latest-run access pattern, Dyn
 - Least-privilege IAM design backed by CDK assertion tests
 - Defensive validation and controlled handling of sensitive operational data
 - Automated TypeScript, Jest/CDK, and Python validation
-- AWS-side deployment, runtime verification, evidence recording, and cleanup for an earlier public snapshot, with the limits of that evidence stated explicitly
+- AWS-side deployment, runtime verification, evidence recording, and cleanup for both a historical public snapshot and the final release candidate, with their distinct scopes stated explicitly

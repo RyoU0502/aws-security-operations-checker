@@ -335,7 +335,7 @@ The Lambda runtime accepts only `ENV_NAME=dev` or `ENV_NAME=prod`. Missing or in
 
 Physical names include the logical environment. The table name also derives uniqueness from the deployment account and region; the Lambda function and its log group include the environment. No account ID is hard-coded in source, and no source code is tied to a particular AWS CLI profile.
 
-Both environments use the same current Checker implementation, Python 3.12 Lambda runtime, 30-second timeout, 128 MB memory allocation, and DynamoDB on-demand billing mode. The current HEAD passed credential-isolated development and production synthesis, and both synthesized templates passed the final local sanity checks. Final AWS deployment and runtime re-validation of the current HEAD are still planned before publication.
+Both environments use the same current Checker implementation, Python 3.12 Lambda runtime, 30-second timeout, 128 MB memory allocation, and DynamoDB on-demand billing mode. The application and infrastructure revision validated in AWS was `d999670`; it passed final AWS deployment and runtime validation in `dev`. The local validation also covered credential-isolated development and production synthesis, and both synthesized templates passed the final local sanity checks. Production has not been deployed or runtime-tested.
 
 ## Cost considerations
 
@@ -390,18 +390,17 @@ The following are not implemented or not yet completed:
 - No DynamoDB TTL
 - No handling strategy for DynamoDB's 400 KB item limit as aggregate result sets grow
 - No packaged and pinned `boto3` version; the Lambda currently uses the runtime-provided SDK
-- No AWS deployment and runtime re-validation of the current HEAD after its post-reproduction hardening and Results bucket removal
 - No production deployment or runtime validation; the current HEAD has passed credential-isolated local production synthesis only
 
 These are roadmap or validation items, not current capabilities.
 
 ## Validation status
 
-An earlier sanitized public snapshot was successfully reproduced in AWS. The reproduction covered development deployment, one Lambda invocation, DynamoDB persistence, CloudWatch Logs, and IAM permissions. A separate later cleanup completed the application stack destruction. Production was not deployed.
+An earlier sanitized public snapshot was successfully reproduced in AWS. That historical reproduction covered development deployment, one Lambda invocation, DynamoDB persistence, CloudWatch Logs, and IAM permissions. A separate later cleanup completed the application stack destruction. This evidence is recorded independently from the AWS validation of application and infrastructure revision `d999670` and does not validate that revision.
 
-The current HEAD was changed after that AWS reproduction to harden Checker result validation, remove the unused Results S3 bucket, minimize the Lambda Logs permissions, make runtime `ENV_NAME` validation fail closed, harden CDK environment configuration, and clean up source comments. The current HEAD has passed the TypeScript build, 48 Jest/CDK tests, and 39 Python tests with Python 3.12.13. It also passed credential-isolated development and production synthesis with no AWS lookups; the synthesized templates passed the final local sanity checks, and the region regression check confirmed that the project-defined target region overrides conflicting standard AWS region variables. Working-tree privacy, reachable Git history, and Markdown relative-link scans found no issues, and generated local artifacts were cleaned up. Final AWS deployment and runtime re-validation of this exact revision is still planned before publication. Historical AWS records must not be interpreted as runtime validation of the current HEAD, and production has never been deployed or runtime-tested.
+The application and infrastructure revision validated in AWS was `d999670`. It passed final local validation and final AWS deployment/runtime validation in the `dev` environment. The subsequent documentation-only update records that validation evidence and does not alter the validated application code. After validation, the development Application Stack was destroyed and no application resources remained. The CDK bootstrap foundation was intentionally retained, and its asset bucket was returned to empty.
 
-The development application stack used for the earlier reproduction was subsequently destroyed, and the application environment was cleaned up. The CDK bootstrap stack and its shared bucket, roles, and parameter were intentionally retained for future CDK use. See the [final AWS cleanup record](docs/test-records/2026-08-08-aws-cleanup.md).
+Production has never been deployed or runtime-tested. The [final release candidate AWS validation](docs/test-records/2026-08-08-final-release-candidate-aws-validation.md) records the current validation; the [final AWS cleanup record](docs/test-records/2026-08-08-aws-cleanup.md) separately records cleanup after the earlier historical reproduction.
 
 ## Relationship to AWS services
 
@@ -421,3 +420,4 @@ Public validation records are available in the repository:
 - [Public snapshot AWS reproduction validation](docs/test-records/2026-08-03-public-snapshot-aws-reproduction.md)
 - [AWS quantity-based cost estimate](docs/test-records/2026-08-03-aws-cost-estimate.md)
 - [Final AWS environment cleanup](docs/test-records/2026-08-08-aws-cleanup.md)
+- [Final release candidate AWS validation](docs/test-records/2026-08-08-final-release-candidate-aws-validation.md)

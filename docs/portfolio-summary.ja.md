@@ -44,11 +44,15 @@ CDKの環境設定、IAMの範囲、Results Bucketが存在しないこと、Che
 
 現在のHEADでは、AWS認証情報を使わず、lookupを行わない条件で`dev`と`prod`のsynthに成功しています。生成したテンプレートは最終ローカル検証に合格し、`TARGET_AWS_REGION=ap-northeast-1`が、`us-east-1`を指定した`AWS_REGION`と`AWS_DEFAULT_REGION`より優先されることも確認しました。
 
-### AWS上での再現検証
+### 過去のAWS再現検証
 
 機密情報を除いた以前の公開用スナップショットは、AWS上で再現検証に成功しています。devへのデプロイ、Lambda呼び出し、DynamoDBへの保存、CloudWatch Logs、IAM権限を確認しました。検証に使ったApplication Stackは、その後destroyし、アプリケーションリソースもクリーンアップ済みです。
 
-この過去の記録は、現在のHEADに対するruntime検証ではありません。現在のリビジョンのデプロイとruntime再検証は、公開前に実施する予定です。prodはこれまでデプロイしておらず、runtime検証も行っていません。
+この過去の検証は、Application / Infrastructureリビジョン`d999670`のAWS検証とは別の記録です。
+
+### 公開候補の最終AWS実機検証
+
+AWS実機で検証したApplication / Infrastructureのリビジョンは`d999670`です。このリビジョンは最終ローカル検証と、`dev`でのAWS実機デプロイ・runtime検証に合格しました。Lambdaを1回だけ呼び出して想定どおりの`PASS`となるend-to-endの動作を確認し、DynamoDBに保存された結果がレスポンスと意味的に一致すること、最小権限IAMがruntimeで機能することも確認しました。その後の変更は、この検証結果を記録するためのドキュメント更新だけです。検証後はdevのApplication StackとApplicationリソースを削除しています。CDK bootstrap基盤は意図的に保持し、asset bucketは空に戻しました。prodはこれまでデプロイもruntimeテストも行っていません。
 
 ## 現在の範囲
 
@@ -82,4 +86,4 @@ CDKの環境設定、IAMの範囲、Results Bucketが存在しないこと、Che
 - CDK assertion testで範囲を確認するIAM最小権限
 - 入力を安全側で検証し、運用データに含める情報を絞る実装
 - TypeScript、Jest/CDK、Pythonによる自動検証
-- 以前の公開用スナップショットに対するAWSデプロイ、runtime確認、記録、クリーンアップと、その検証範囲の明示
+- 過去の公開用スナップショットと最終公開候補それぞれのAWSデプロイ、runtime確認、記録、クリーンアップと、異なる検証範囲の明示

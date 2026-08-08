@@ -335,7 +335,7 @@ Lambda runtimeが受け付けるのは`ENV_NAME=dev`または`ENV_NAME=prod`だ�
 
 物理名には論理環境を含めます。テーブル名は、デプロイ先のアカウントとリージョンも使って一意になるようにしています。Lambda関数とロググループの名前には環境名を含めます。アカウントIDはソースコードにハードコードしておらず、特定のAWS CLIプロファイルに依存するコードもありません。
 
-両環境とも、同じChecker実装、Python 3.12のLambda runtime、30秒のタイムアウト、128 MBのメモリ、DynamoDBのオンデマンド課金を使います。現在のHEADでは、AWS認証情報を使わないdev / prodのsynthに成功し、生成した両方のテンプレートも最終ローカル検証に合格しました。現在のHEADをAWSへデプロイして行うruntimeの再検証は、引き続き公開前に実施する予定です。
+両環境とも、同じChecker実装、Python 3.12のLambda runtime、30秒のタイムアウト、128 MBのメモリ、DynamoDBのオンデマンド課金を使います。AWS実機で検証したApplication / Infrastructureのリビジョンは`d999670`です。このリビジョンは`dev`でのAWS実機デプロイとruntime検証に合格しました。ローカル検証では、AWS認証情報を使わないdev / prodのsynthにも成功し、生成した両方のテンプレートも最終ローカル検証に合格しています。prodはデプロイもruntimeテストも行っていません。
 
 ## コストに関する考慮事項
 
@@ -390,20 +390,19 @@ npx cdk destroy <STACK_NAME> -c env=dev --profile <AWS_PROFILE>
 - DynamoDB TTLなし
 - 集約する結果が増えた場合のDynamoDBの400 KBアイテム上限への対応方針なし
 - `boto3`のパッケージ化とバージョン固定なし。現在はLambda runtimeが提供するSDKを使用
-- AWS再現検証後の設定強化とResults Bucket削除を反映した現在のHEADについて、AWSへのデプロイとruntime再検証は未実施
 - prodのデプロイとruntime検証は未実施。現在のHEADで確認済みなのは、AWS認証情報を使わないprodのローカルsynthまで
 
 これらは今後の対応や検証項目であり、現在使える機能ではありません。
 
 ## 検証状況
 
-機密情報を除いた以前の公開用スナップショットは、AWS上での再現検証に成功しています。この検証では、devへのデプロイ、Lambdaの呼び出し1回、DynamoDBへの保存、CloudWatch Logs、IAM権限を確認しました。その後、別途クリーンアップを行い、Application Stackをdestroyしています。prodはデプロイしていません。
+機密情報を除いた以前の公開用スナップショットは、AWS上での再現検証に成功しています。この過去の検証では、devへのデプロイ、Lambdaの呼び出し1回、DynamoDBへの保存、CloudWatch Logs、IAM権限を確認しました。その後、別途クリーンアップを行い、Application Stackをdestroyしています。この記録はApplication / Infrastructureリビジョン`d999670`のAWS検証とは別のもので、`d999670`を検証した証拠としては扱いません。
 
-このAWS再現検証の後、現在のHEADには次の変更を加えました。Checkerの結果検証の強化、未使用だったResults S3 Bucketの削除、LambdaのCloudWatch Logs権限の最小化、runtimeで`ENV_NAME`が不正な場合に安全側で停止する処理、CDK環境設定の強化、ソースコメントの整理です。
+AWS実機で検証したApplication / Infrastructureのリビジョンは`d999670`です。最終ローカル検証と、`dev`でのAWS実機デプロイ・runtime検証に合格しました。その後の変更は、この検証結果を記録するためのドキュメント更新だけで、検証対象のアプリケーションコードは変更していません。
 
-現在のHEADでは、TypeScriptビルド、48件のJest/CDKテスト、Python 3.12.13による39件のPythonテストに成功しています。AWS認証情報を使わず、lookupを行わない条件でdev / prodのsynthにも成功しました。生成したテンプレートの最終ローカル検証にも合格し、プロジェクト独自の対象リージョンが競合する標準のAWSリージョン環境変数より優先されることも確認しています。作業ツリーの機密情報、到達可能なGit履歴、Markdownの相対リンクにも問題はなく、ローカルで生成した成果物は削除済みです。現在のHEADをAWSへデプロイして行うruntimeの再検証は、引き続き公開前に実施する予定です。過去のAWS検証記録を現在のHEADに対するruntime検証として扱うことはできず、prodはこれまでデプロイもruntimeテストも行っていません。
+検証後はdevのApplication Stackをdestroyし、Applicationリソースは残していません。CDK bootstrap基盤だけを意図的に保持し、asset bucketは空に戻しました。prodはこれまでデプロイもruntimeテストも行っていません。
 
-以前の再現検証で使ったdevのApplication Stackは、その後destroyし、アプリケーション環境もクリーンアップ済みです。CDK bootstrap stackと共有バケット、ロール、パラメータは、今後のCDK利用に備えて意図的に残しています。詳しくは[最終AWSクリーンアップ記録](docs/test-records/2026-08-08-aws-cleanup.md)を参照してください。
+現在の検証については[公開候補の最終AWS実機検証](docs/test-records/2026-08-08-final-release-candidate-aws-validation.md)、以前の再現検証後のクリーンアップについては別記録の[最終AWSクリーンアップ記録](docs/test-records/2026-08-08-aws-cleanup.md)を参照してください。
 
 ## AWSサービスとの関係
 
@@ -423,3 +422,4 @@ npx cdk destroy <STACK_NAME> -c env=dev --profile <AWS_PROFILE>
 - [公開用スナップショットのAWS再現検証](docs/test-records/2026-08-03-public-snapshot-aws-reproduction.md)
 - [AWS利用量ベースのコスト試算](docs/test-records/2026-08-03-aws-cost-estimate.md)
 - [AWS環境の最終クリーンアップ](docs/test-records/2026-08-08-aws-cleanup.md)
+- [公開候補の最終AWS実機検証](docs/test-records/2026-08-08-final-release-candidate-aws-validation.md)
